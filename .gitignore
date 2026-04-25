@@ -1,3 +1,7 @@
+# Project-specific exclusions
+CLAUDE.md
+Nova.xcodeproj/
+
 # macOS
 .DS_Store
 .AppleDouble
