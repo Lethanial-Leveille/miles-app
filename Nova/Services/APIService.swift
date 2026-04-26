@@ -43,6 +43,23 @@ enum APIService {
         return try await perform(request)
     }
 
+    static func chat(text: String) async throws -> String {
+        var request = try await authenticatedRequest(path: "/chat")
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["message": text])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try checkStatus(response)
+
+        // Server returns {"response": "..."}
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let text = json["response"] as? String {
+            return text
+        }
+        throw APIError.decodingError("Unexpected response format from /chat.")
+    }
+
     // MARK: Private helpers
 
     // Builds a GET URLRequest with the Authorization header already attached
@@ -66,7 +83,21 @@ enum APIService {
 
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+
+            let formatter = ISO8601DateFormatter()
+            // Try with fractional seconds first (server sends microseconds)
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: string) { return date }
+            // Fallback for dates without fractional seconds
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: string) { return date }
+
+            throw DecodingError.dataCorruptedError(in: container,
+                debugDescription: "Cannot parse date: \(string)")
+        }
 
         do {
             return try decoder.decode(T.self, from: data)

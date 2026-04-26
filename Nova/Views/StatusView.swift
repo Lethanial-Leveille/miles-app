@@ -56,10 +56,8 @@ struct StatusView: View {
     private func statusGrid(_ status: SystemStatus) -> some View {
         ScrollView {
             VStack(spacing: 1) {
-                StatusRow(label: "VERSION",      value: status.version,               colorScheme: colorScheme)
-                StatusRow(label: "UPTIME",       value: formattedUptime(status.uptime), colorScheme: colorScheme)
-                StatusRow(label: "MEMORIES",     value: "\(status.memoryCount)",      colorScheme: colorScheme)
-                StatusRow(label: "LAST ACTIVE",  value: formattedDate(status.lastInteraction), colorScheme: colorScheme)
+                StatusRow(label: "STATUS",  value: status.status.uppercased(), colorScheme: colorScheme)
+                StatusRow(label: "VERSION", value: status.version,             colorScheme: colorScheme)
             }
             .padding(.top, 24)
             .padding(.horizontal, 20)
@@ -77,19 +75,6 @@ struct StatusView: View {
         isLoading = false
     }
 
-    private func formattedUptime(_ seconds: Double) -> String {
-        let h = Int(seconds) / 3600
-        let m = (Int(seconds) % 3600) / 60
-        return String(format: "%dh %02dm", h, m)
-    }
-
-    private func formattedDate(_ date: Date?) -> String {
-        guard let date else { return "N/A" }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
 }
 
 private struct StatusRow: View {

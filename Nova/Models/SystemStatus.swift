@@ -1,8 +1,6 @@
 import Foundation
 
 struct SystemStatus: Decodable {
-    let uptime: Double
+    let status: String
     let version: String
-    let memoryCount: Int
-    let lastInteraction: Date?
 }

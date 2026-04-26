@@ -51,17 +51,23 @@ class WebSocketService: ObservableObject {
     // MARK: Sending messages
 
     func send(text: String) async {
-        guard isConnected else { return }
-
         // Add the user bubble immediately so the UI feels instant
         messages.append(ChatMessage(role: .user, text: text))
         isTyping = true
+        errorMessage = nil
 
         do {
-            try await sendRaw(["type": "message", "text": text])
+            let raw = try await APIService.chat(text: text)
+            let cleaned = raw.replacingOccurrences(
+                of: "\\[.*?\\]\\s*",
+                with: "",
+                options: .regularExpression
+            )
+            isTyping = false
+            messages.append(ChatMessage(role: .nova, text: cleaned.trimmingCharacters(in: .whitespaces)))
         } catch {
             isTyping = false
-            errorMessage = "Failed to send message."
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -81,7 +87,7 @@ class WebSocketService: ObservableObject {
         guard case .string(let text) = message,
               let data = text.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              json["type"] as? String == "auth_ok"
+              json["status"] as? String == "authenticated"
         else {
             throw AuthError.invalidCredentials
         }
@@ -98,7 +104,6 @@ class WebSocketService: ObservableObject {
                     if case .string(let text) = message {
                         self.handleIncoming(text)
                     }
-                    // Keep the loop going for the next message
                     self.receiveLoop()
 
                 case .failure:

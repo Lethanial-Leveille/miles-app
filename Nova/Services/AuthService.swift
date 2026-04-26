@@ -25,7 +25,6 @@ enum AuthError: LocalizedError {
 // Matches the JSON shape of the /auth/login response
 private struct LoginResponse: Decodable {
     let accessToken: String
-    let refreshToken: String
 }
 
 // Matches the JSON shape of the /auth/refresh response
@@ -65,7 +64,6 @@ enum AuthService {
         let body = try decoder.decode(LoginResponse.self, from: data)
 
         KeychainHelper.save(body.accessToken, forKey: Constants.Keychain.accessToken)
-        KeychainHelper.save(body.refreshToken, forKey: Constants.Keychain.refreshToken)
     }
 
     // Use the stored refresh token to get a new access token
