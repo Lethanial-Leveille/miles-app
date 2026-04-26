@@ -16,10 +16,18 @@ struct NovaApp: App {
     }
 
     private func checkExistingSession() {
-        // If a non-expired access token already exists in the Keychain, skip login
-        guard let token = KeychainHelper.read(forKey: Constants.Keychain.accessToken) else { return }
-        if !AuthService.isExpired(token) {
-            isAuthenticated = true
+        guard let token = KeychainHelper.read(forKey: Constants.Keychain.accessToken),
+              !AuthService.isExpired(token)
+        else { return }
+
+        // Token exists and is valid — require FaceID before granting access
+        Task {
+            do {
+                try await AuthService.authenticateWithBiometrics()
+                isAuthenticated = true
+            } catch {
+                // FaceID failed or was cancelled — stay on login screen
+            }
         }
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 
 // Errors that AuthService can produce, shown directly in the UI
 enum AuthError: LocalizedError {
@@ -7,6 +8,7 @@ enum AuthError: LocalizedError {
     case networkError(String)
     case tokenMissing
     case tokenExpired
+    case biometricsFailed
 
     var errorDescription: String? {
         switch self {
@@ -15,6 +17,7 @@ enum AuthError: LocalizedError {
         case .networkError(let msg):    return "Network error: \(msg)"
         case .tokenMissing:             return "No saved session. Please log in."
         case .tokenExpired:             return "Session expired. Please log in."
+        case .biometricsFailed:         return "Face ID failed. Please log in."
         }
     }
 }
@@ -117,6 +120,27 @@ enum AuthService {
     static func logout() {
         KeychainHelper.delete(forKey: Constants.Keychain.accessToken)
         KeychainHelper.delete(forKey: Constants.Keychain.refreshToken)
+    }
+
+    // Prompts FaceID. Throws biometricsFailed if the user cancels or fails.
+    // Returns silently if the device does not support biometrics.
+    static func authenticateWithBiometrics() async throws {
+        let context = LAContext()
+        var error: NSError?
+
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            // Device has no biometrics enrolled — skip silently
+            return
+        }
+
+        let success = try await context.evaluatePolicy(
+            .deviceOwnerAuthenticationWithBiometrics,
+            localizedReason: "Authenticate to access Nova"
+        )
+
+        if !success {
+            throw AuthError.biometricsFailed
+        }
     }
 
     // Returns true if the JWT's exp claim is in the past
