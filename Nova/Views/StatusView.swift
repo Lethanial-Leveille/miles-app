@@ -1,30 +1,30 @@
 import SwiftUI
 
 struct StatusView: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     @State private var status:       SystemStatus? = nil
     @State private var isLoading:    Bool = true
     @State private var errorMessage: String? = nil
 
     var body: some View {
         ZStack {
-            Theme.background(colorScheme).ignoresSafeArea()
+            Theme.background.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 header
 
-                Divider().background(Theme.accent(colorScheme).opacity(0.2))
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Theme.accent.opacity(0.15))
 
                 if isLoading {
                     Spacer()
-                    ProgressView().tint(Theme.accent(colorScheme))
+                    ProgressView().tint(Theme.accent)
                     Spacer()
                 } else if let error = errorMessage {
                     Spacer()
                     Text(error)
                         .font(.system(size: 13, design: .monospaced))
-                        .foregroundColor(.red)
+                        .foregroundColor(Theme.textPrimary)
                         .multilineTextAlignment(.center)
                         .padding(24)
                     Spacer()
@@ -40,13 +40,13 @@ struct StatusView: View {
         HStack {
             Text("SYSTEM STATUS")
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundColor(Theme.textPrimary(colorScheme))
+                .foregroundColor(Theme.textPrimary)
                 .tracking(4)
             Spacer()
             Button(action: { Task { await loadStatus() } }) {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 13))
-                    .foregroundColor(Theme.accent(colorScheme))
+                    .foregroundColor(Theme.accent)
             }
         }
         .padding(.horizontal, 20)
@@ -56,8 +56,8 @@ struct StatusView: View {
     private func statusGrid(_ status: SystemStatus) -> some View {
         ScrollView {
             VStack(spacing: 1) {
-                StatusRow(label: "STATUS",  value: status.status.uppercased(), colorScheme: colorScheme)
-                StatusRow(label: "VERSION", value: status.version,             colorScheme: colorScheme)
+                StatusRow(label: "STATUS",  value: status.status.uppercased())
+                StatusRow(label: "VERSION", value: status.version)
             }
             .padding(.top, 24)
             .padding(.horizontal, 20)
@@ -74,34 +74,31 @@ struct StatusView: View {
         }
         isLoading = false
     }
-
 }
 
 private struct StatusRow: View {
     let label: String
     let value: String
-    let colorScheme: ColorScheme
 
     var body: some View {
         HStack {
             Text(label)
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(Theme.textSecondary(colorScheme))
+                .foregroundColor(Theme.textSecondary)
                 .tracking(2)
             Spacer()
             Text(value)
                 .font(.system(size: 13, weight: .regular, design: .monospaced))
-                .foregroundColor(Theme.textPrimary(colorScheme))
+                .foregroundColor(Theme.textPrimary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(Theme.surface(colorScheme))
-        .overlay(
+        .background(Theme.surface)
+        .overlay(alignment: .bottom) {
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Theme.accent(colorScheme).opacity(0.08)),
-            alignment: .bottom
-        )
+                .foregroundColor(Theme.accent.opacity(0.08))
+        }
     }
 }
 

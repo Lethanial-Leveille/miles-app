@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct NovaTypingIndicator: View {
-    @Environment(\.colorScheme) private var colorScheme
     @State private var phase = 0
 
     var body: some View {
@@ -10,7 +9,7 @@ struct NovaTypingIndicator: View {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
                         .frame(width: 7, height: 7)
-                        .foregroundColor(Theme.accent(colorScheme))
+                        .foregroundColor(Theme.accent)
                         .opacity(phase == index ? 1.0 : 0.3)
                         .animation(
                             .easeInOut(duration: 0.4).repeatForever().delay(Double(index) * 0.15),
@@ -20,7 +19,7 @@ struct NovaTypingIndicator: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Theme.surface(colorScheme))
+            .background(Theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
             Spacer(minLength: 48)

@@ -20,6 +20,9 @@ enum APIError: LocalizedError {
 
 enum APIService {
 
+    // Set by AuthManager.init() — called whenever any request gets a 401
+    static var onUnauthorized: (() -> Void)?
+
     // MARK: Public endpoints
 
     static func fetchStatus() async throws -> SystemStatus {
@@ -102,7 +105,9 @@ enum APIService {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            throw APIError.decodingError(error.localizedDescription)
+            let reason = "\(error)"
+            print("[Nova] Decode error for \(T.self): \(reason)")
+            throw APIError.decodingError(reason)
         }
     }
 
@@ -118,7 +123,9 @@ enum APIService {
 
         switch http.statusCode {
         case 200...299:     return
-        case 401:           throw APIError.unauthorized
+        case 401:
+            onUnauthorized?()
+            throw APIError.unauthorized
         case 404:           throw APIError.notFound
         default:            throw APIError.serverError(http.statusCode)
         }

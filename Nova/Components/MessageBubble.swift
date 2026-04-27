@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct MessageBubble: View {
-    @Environment(\.colorScheme) private var colorScheme
     let message: ChatMessage
 
     private var isUser: Bool { message.role == .user }
@@ -11,17 +10,30 @@ struct MessageBubble: View {
             if isUser { Spacer(minLength: 48) }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
-                Text(message.text)
-                    .font(.system(size: 15, design: .default))
-                    .foregroundColor(isUser ? Theme.background(colorScheme) : Theme.textPrimary(colorScheme))
+                Text(isUser ? "YOU" : "NOVA")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(isUser ? Theme.accent : Theme.accent.opacity(0.55))
+                    .tracking(2)
+                    .padding(.horizontal, 4)
+
+                Text(cleaned)
+                    .font(.system(size: 15))
+                    .foregroundColor(isUser ? Theme.accent : Theme.textPrimary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(bubbleBackground)
+                    .background(isUser ? Theme.background : Theme.surface)
                     .clipShape(BubbleShape(isUser: isUser))
+                    .overlay(
+                        BubbleShape(isUser: isUser)
+                            .stroke(
+                                isUser ? Theme.accent : Theme.accent.opacity(0.3),
+                                lineWidth: 1.5
+                            )
+                    )
 
                 Text(formattedTime)
                     .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(Theme.textSecondary(colorScheme))
+                    .foregroundColor(Theme.textSecondary)
                     .padding(.horizontal, 4)
             }
 
@@ -31,18 +43,23 @@ struct MessageBubble: View {
         .padding(.vertical, 2)
     }
 
-    private var bubbleBackground: Color {
-        isUser ? Theme.accent(colorScheme) : Theme.surface(colorScheme)
+    // Strip bracketed stage directions like [calmly] or [short pause]
+    private var cleaned: String {
+        let stripped = message.text.replacingOccurrences(
+            of: "\\[[^\\]]*\\]\\s*",
+            with: "",
+            options: .regularExpression
+        )
+        return stripped.trimmingCharacters(in: .whitespaces)
     }
 
     private var formattedTime: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: message.timestamp)
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f.string(from: message.timestamp)
     }
 }
 
-// Custom bubble shape: sharp corner on the sender's side, rounded elsewhere
 private struct BubbleShape: Shape {
     let isUser: Bool
 
@@ -50,13 +67,12 @@ private struct BubbleShape: Shape {
         let r: CGFloat = 16
         let sharpR: CGFloat = 4
 
+        let tl: CGFloat = isUser ? r      : sharpR
+        let tr: CGFloat = isUser ? sharpR : r
+        let bl: CGFloat = isUser ? r      : r
+        let br: CGFloat = isUser ? r      : sharpR
+
         var path = Path()
-
-        let tl = isUser ? r      : sharpR
-        let tr = isUser ? sharpR : r
-        let bl = isUser ? r      : r
-        let br = isUser ? r      : sharpR
-
         path.move(to: CGPoint(x: rect.minX + tl, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY))
         path.addArc(center: CGPoint(x: rect.maxX - tr, y: rect.minY + tr),
@@ -71,7 +87,6 @@ private struct BubbleShape: Shape {
         path.addArc(center: CGPoint(x: rect.minX + tl, y: rect.minY + tl),
                     radius: tl, startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
         path.closeSubpath()
-
         return path
     }
 }

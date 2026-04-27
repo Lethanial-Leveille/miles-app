@@ -2,41 +2,29 @@ import SwiftUI
 
 @main
 struct NovaApp: App {
-    @State private var isAuthenticated = false
+    @StateObject private var authManager = AuthManager()
 
     var body: some Scene {
         WindowGroup {
-            if isAuthenticated {
-                MainTabView(onLogout: handleLogout)
-            } else {
-                LoginView(onLoginSuccess: handleLoginSuccess)
-                    .task { checkExistingSession() }
+            Group {
+                if authManager.isAuthenticated {
+                    MainTabView()
+                } else {
+                    LoginView()
+                        .task { await attemptBiometricResume() }
+                }
             }
+            .environmentObject(authManager)
+            .preferredColorScheme(.dark)
         }
     }
 
-    private func checkExistingSession() {
-        guard let token = KeychainHelper.read(forKey: Constants.Keychain.accessToken),
-              !AuthService.isExpired(token)
-        else { return }
-
-        // Token exists and is valid — require FaceID before granting access
-        Task {
-            do {
-                try await AuthService.authenticateWithBiometrics()
-                isAuthenticated = true
-            } catch {
-                // FaceID failed or was cancelled — stay on login screen
-            }
+    // On launch, try to skip the password screen if a valid token exists in Keychain
+    private func attemptBiometricResume() async {
+        do {
+            try await authManager.loginWithBiometrics()
+        } catch {
+            // Token invalid or FaceID cancelled — stay on login screen
         }
-    }
-
-    private func handleLoginSuccess() {
-        isAuthenticated = true
-    }
-
-    private func handleLogout() {
-        AuthService.logout()
-        isAuthenticated = false
     }
 }

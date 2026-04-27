@@ -49,3 +49,8 @@ fastlane/test_output
 .env
 *.pem
 *.p12
+
+# Local planning and tooling — not part of the codebase
+BACKEND_TODO.md
+memory/
+Mobile Login Screen Design/
