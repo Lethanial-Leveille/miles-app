@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MemoriesView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var memories:     [Memory] = []
     @State private var isLoading:    Bool = true
     @State private var errorMessage: String? = nil
@@ -45,6 +46,15 @@ struct MemoriesView: View {
 
     private var header: some View {
         HStack {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Theme.accent)
+            }
+            .padding(.trailing, 8)
+
             Text("MEMORY BANK")
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
                 .foregroundColor(Theme.textPrimary)

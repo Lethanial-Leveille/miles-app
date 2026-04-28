@@ -108,7 +108,7 @@ struct SettingsView: View {
                             .frame(width: 6, height: 6)
                             .foregroundColor(Theme.accent)
                             .shadow(color: Theme.accentGlow, radius: 4)
-                        Text("\(s.status.uppercased())  v\(s.version)")
+                        Text(s.status.uppercased())
                             .font(.system(size: 10, design: .monospaced))
                             .foregroundColor(Theme.accent)
                     }

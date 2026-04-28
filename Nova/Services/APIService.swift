@@ -35,7 +35,7 @@ enum APIService {
         return try await perform(request)
     }
 
-    static func deleteMemory(id: String) async throws {
+    static func deleteMemory(id: Int) async throws {
         var request = try await authenticatedRequest(path: "/memories/\(id)")
         request.httpMethod = "DELETE"
         try await performNoContent(request)
