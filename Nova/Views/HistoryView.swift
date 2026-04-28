@@ -154,8 +154,7 @@ struct HistoryView: View {
         currentPage = 1
         hasMorePages = true
         do {
-            messages = try await APIService.fetchHistory(page: 1)
-            // If the first page returned fewer than 20, there are no more pages
+            messages = try await APIService.fetchHistory(page: 1).reversed()
             if messages.count < 20 { hasMorePages = false }
         } catch {
             errorMessage = error.localizedDescription
@@ -172,7 +171,7 @@ struct HistoryView: View {
             if batch.isEmpty {
                 hasMorePages = false
             } else {
-                messages.append(contentsOf: batch)
+                messages.append(contentsOf: batch.reversed())
                 currentPage = nextPage
                 if batch.count < 20 { hasMorePages = false }
             }
