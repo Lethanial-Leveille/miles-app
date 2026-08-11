@@ -5,9 +5,11 @@ struct HistoryView: View {
     @State private var isLoading:      Bool = true
     @State private var isLoadingMore:  Bool = false
     @State private var hasMorePages:   Bool = true
-    @State private var currentPage:    Int = 1
     @State private var errorMessage:   String? = nil
     @State private var searchText:     String = ""
+
+    // Offset paging replaced the page counter: messages.count is the offset.
+    private let pageSize = 20
 
     private var displayed: [Message] {
         guard !searchText.isEmpty else { return messages }
@@ -151,11 +153,12 @@ struct HistoryView: View {
     private func loadInitial() async {
         isLoading = true
         errorMessage = nil
-        currentPage = 1
         hasMorePages = true
         do {
-            messages = try await APIService.fetchHistory(page: 1).reversed()
-            if messages.count < 20 { hasMorePages = false }
+            // Server sends each page oldest first; reversed() puts the newest
+            // at the top of the list.
+            messages = try await APIService.fetchHistory(limit: pageSize, offset: 0).reversed()
+            if messages.count < pageSize { hasMorePages = false }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -165,15 +168,16 @@ struct HistoryView: View {
     private func loadMore() async {
         guard !isLoadingMore && hasMorePages else { return }
         isLoadingMore = true
-        let nextPage = currentPage + 1
         do {
-            let batch = try await APIService.fetchHistory(page: nextPage)
+            // offset is how many rows we already hold. The server orders by id
+            // descending, so this asks for the next older page.
+            let batch = try await APIService.fetchHistory(limit: pageSize,
+                                                         offset: messages.count)
             if batch.isEmpty {
                 hasMorePages = false
             } else {
                 messages.append(contentsOf: batch.reversed())
-                currentPage = nextPage
-                if batch.count < 20 { hasMorePages = false }
+                if batch.count < pageSize { hasMorePages = false }
             }
         } catch {
             // Pagination errors do not replace the existing list

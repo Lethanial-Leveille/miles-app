@@ -13,7 +13,8 @@ enum APIError: LocalizedError {
         case .unauthorized:             return "Session expired. Please log in again."
         case .notFound:                 return "Resource not found."
         case .serverError(let code):    return "Server error (\(code))."
-        case .decodingError(let msg):   return "Data error: \(msg)"
+        // Already a complete sentence from readableDecodingMessage, so no prefix.
+        case .decodingError(let msg):   return msg
         }
     }
 }
@@ -30,8 +31,11 @@ enum APIService {
         return try await perform(request)
     }
 
-    static func fetchMemories() async throws -> [Memory] {
-        let request = try await authenticatedRequest(path: "/memories")
+    // Returns the whole envelope rather than just the page, because the
+    // caller needs total to show a real count and to know whether another
+    // page exists. Page size is 20 to match the History tab.
+    static func fetchMemories(limit: Int = 20, offset: Int = 0) async throws -> MemoriesResponse {
+        let request = try await authenticatedRequest(path: "/memories?limit=\(limit)&offset=\(offset)")
         return try await perform(request)
     }
 
@@ -41,8 +45,11 @@ enum APIService {
         try await performNoContent(request)
     }
 
-    static func fetchHistory(page: Int = 1) async throws -> [Message] {
-        let request = try await authenticatedRequest(path: "/history?page=\(page)")
+    // The server takes limit and offset. It never accepted page, and FastAPI
+    // drops unknown query params silently, so the old page argument was being
+    // thrown away and every call returned the same first rows.
+    static func fetchHistory(limit: Int = 20, offset: Int = 0) async throws -> [Message] {
+        let request = try await authenticatedRequest(path: "/history?limit=\(limit)&offset=\(offset)")
         return try await perform(request)
     }
 
@@ -105,10 +112,57 @@ enum APIService {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            let reason = "\(error)"
-            print("[Nova] Decode error for \(T.self): \(reason)")
-            throw APIError.decodingError(reason)
+            let endpoint = request.url?.path ?? "The server"
+            // Raw error to the console for debugging, plain sentence to the UI.
+            print("[Nova] Decode error for \(T.self) at \(endpoint): \(error)")
+            throw APIError.decodingError(readableDecodingMessage(error, endpoint: endpoint))
         }
+    }
+
+    // Turns a DecodingError into a sentence that names what broke and where.
+    // A backend shape change should tell you which field moved, not print a
+    // wall of Swift internals into the middle of the screen.
+    private static func readableDecodingMessage(_ error: Error, endpoint: String) -> String {
+        guard let decodingError = error as? DecodingError else {
+            return "\(endpoint) returned data the app could not read."
+        }
+
+        switch decodingError {
+        case .keyNotFound(let key, let context):
+            let at = Self.describe(context.codingPath).map { " at \($0)" } ?? ""
+            return "\(endpoint) is missing the field \"\(key.stringValue)\"\(at). "
+                 + "The app and the server disagree about this response."
+
+        case .typeMismatch(let expected, let context):
+            let subject = Self.describe(context.codingPath) ?? "the response"
+            return "\(endpoint) sent the wrong type for \(subject). "
+                 + "The app expected \(expected)."
+
+        case .valueNotFound(let expected, let context):
+            let subject = Self.describe(context.codingPath) ?? "the response"
+            return "\(endpoint) sent null for \(subject), which the app requires "
+                 + "to be \(expected). Marking that property optional would fix it."
+
+        case .dataCorrupted(let context):
+            let at = Self.describe(context.codingPath).map { " at \($0)" } ?? ""
+            return "\(endpoint) sent a value the app could not parse\(at). "
+                 + context.debugDescription
+
+        @unknown default:
+            return "\(endpoint) returned an unreadable response."
+        }
+    }
+
+    // Renders a coding path the way you would write it in Swift, so
+    // memories[0].content instead of an array of opaque CodingKey values.
+    // Returns nil for the root, where there is no meaningful location.
+    private static func describe(_ path: [CodingKey]) -> String? {
+        guard !path.isEmpty else { return nil }
+
+        return path
+            .map { $0.intValue.map { index in "[\(index)]" } ?? $0.stringValue }
+            .joined(separator: ".")
+            .replacingOccurrences(of: ".[", with: "[")
     }
 
     // Sends a request that returns no body (204 No Content), just checks status
