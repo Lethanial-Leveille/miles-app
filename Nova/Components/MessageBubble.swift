@@ -6,19 +6,43 @@ struct MessageBubble: View {
     private var isUser: Bool { message.role == .user }
 
     var body: some View {
+        if !isUser && message.text.isEmpty {
+            // Nova chose not to answer, which is worth saying instead of drawing an empty bubble
+            Text("NOVA STAYED QUIET")
+                .novaFont(9, weight: .medium, design: .monospaced)
+                .foregroundColor(Theme.textSecondary)
+                .tracking(2)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        } else {
+            bubble
+        }
+    }
+
+    private var bubble: some View {
         HStack(alignment: .bottom, spacing: 0) {
             if isUser { Spacer(minLength: 48) }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
-                Text(isUser ? "YOU" : "NOVA")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(isUser ? Theme.accent : Theme.accent.opacity(0.55))
-                    .tracking(2)
-                    .padding(.horizontal, 4)
+                HStack(spacing: 5) {
+                    Text(isUser ? "YOU" : "NOVA")
+                        .novaFont(9, weight: .bold, design: .monospaced)
+                        .foregroundColor(isUser ? Theme.accent : Theme.accent.opacity(0.55))
+                        .tracking(2)
 
-                Text(cleaned)
-                    .font(.system(size: 15))
+                    if message.fromRoom {
+                        Image(systemName: "hifispeaker.fill")
+                            .novaFont(8)
+                            .foregroundColor(Theme.textSecondary)
+                            .accessibilityLabel("Said in the room")
+                    }
+                }
+                .padding(.horizontal, 4)
+
+                content
+                    .novaFont(15)
                     .foregroundColor(isUser ? Theme.accent : Theme.textPrimary)
+                    .tint(Theme.accent)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(isUser ? Theme.background : Theme.surface)
@@ -30,9 +54,18 @@ struct MessageBubble: View {
                                 lineWidth: 1.5
                             )
                     )
+                    // Without this the long press preview is a plain rectangle around the bubble
+                    .contentShape(.contextMenuPreview, BubbleShape(isUser: isUser))
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = message.text
+                        } label: {
+                            Label("Copy", systemImage: "doc.on.doc")
+                        }
+                    }
 
                 Text(formattedTime)
-                    .font(.system(size: 10, design: .monospaced))
+                    .novaFont(10, design: .monospaced)
                     .foregroundColor(Theme.textSecondary)
                     .padding(.horizontal, 4)
             }
@@ -43,20 +76,34 @@ struct MessageBubble: View {
         .padding(.vertical, 2)
     }
 
-    // Strip bracketed stage directions like [calmly] or [short pause]
-    private var cleaned: String {
-        let stripped = message.text.replacingOccurrences(
-            of: "\\[[^\\]]*\\]\\s*",
-            with: "",
-            options: .regularExpression
-        )
-        return stripped.trimmingCharacters(in: .whitespaces)
+    // Nova writes markdown on the text channel. What the user typed is shown literally,
+    // so an asterisk in a question never turns into italics.
+    @ViewBuilder
+    private var content: some View {
+        if isUser {
+            Text(message.text)
+        } else {
+            MarkdownText(source: message.text)
+        }
     }
 
+    // Built once; a DateFormatter is expensive to create and this runs for every bubble on every render
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    private static let dayAndTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d  HH:mm"
+        return formatter
+    }()
+
+    // Context loaded from history can be days old, and a bare time would pass it off as today
     private var formattedTime: String {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f.string(from: message.timestamp)
+        let formatter = Calendar.current.isDateInToday(message.timestamp) ? Self.timeFormatter : Self.dayAndTimeFormatter
+        return formatter.string(from: message.timestamp)
     }
 }
 
