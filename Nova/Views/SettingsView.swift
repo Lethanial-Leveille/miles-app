@@ -6,6 +6,20 @@ struct SettingsView: View {
     @State private var systemStatus: SystemStatus?
     @State private var statusIsLoading = true
     @State private var statusError: String?
+    @State private var pendingMemoryCount = 0
+
+    // Read from the bundle so the About row cannot drift from MARKETING_VERSION again
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    }
+
+    private var memoriesDetail: String {
+        switch pendingMemoryCount {
+        case 0:  return "View and manage stored knowledge"
+        case 1:  return "1 memory awaiting your approval"
+        default: return "\(pendingMemoryCount) memories awaiting your approval"
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -24,7 +38,7 @@ struct SettingsView: View {
                             MemoriesView()
                                 .toolbar(.hidden, for: .navigationBar)
                         } label: {
-                            navRow(icon: "brain", label: "MEMORIES", detail: "View and manage stored knowledge")
+                            navRow(icon: "brain", label: "MEMORIES", detail: memoriesDetail)
                         }
 
                         sectionLabel("VOICE")
@@ -34,9 +48,11 @@ struct SettingsView: View {
                         logoutRow
 
                         sectionLabel("ABOUT")
-                        infoRow(icon: "app.badge", label: "NOVA", detail: "v0.8  M.I.L.E.S. Interface")
+                        infoRow(icon: "app.badge", label: "NOVA", detail: "v\(appVersion)  M.I.L.E.S. Interface")
                     }
                     .padding(.bottom, 32)
+                    // onAppear rather than task, so the count updates after returning from Memory Bank
+                    .onAppear { Task { await loadPendingMemoryCount() } }
                 }
             }
             .navigationBarHidden(true)
@@ -49,7 +65,7 @@ struct SettingsView: View {
     private var pageHeader: some View {
         HStack {
             Text("SETTINGS")
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .novaFont(13, weight: .bold, design: .monospaced)
                 .foregroundColor(Theme.textPrimary)
                 .tracking(4)
             Spacer()
@@ -68,7 +84,7 @@ struct SettingsView: View {
     private func sectionLabel(_ title: String) -> some View {
         HStack {
             Text(title)
-                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .novaFont(9, weight: .medium, design: .monospaced)
                 .foregroundColor(Theme.textSecondary)
                 .tracking(3)
             Spacer()
@@ -83,23 +99,23 @@ struct SettingsView: View {
     private var systemStatusRow: some View {
         HStack(spacing: 14) {
             Image(systemName: "antenna.radiowaves.left.and.right")
-                .font(.system(size: 16))
+                .novaFont(16)
                 .foregroundColor(Theme.accent)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("SYSTEM STATUS")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .novaFont(12, weight: .medium, design: .monospaced)
                     .foregroundColor(Theme.textPrimary)
                     .tracking(1)
 
                 if statusIsLoading {
                     Text("CONNECTING...")
-                        .font(.system(size: 10, design: .monospaced))
+                        .novaFont(10, design: .monospaced)
                         .foregroundColor(Theme.textSecondary)
                 } else if let err = statusError {
                     Text(err)
-                        .font(.system(size: 10, design: .monospaced))
+                        .novaFont(10, design: .monospaced)
                         .foregroundColor(Theme.textPrimary)
                         .lineLimit(1)
                 } else if let s = systemStatus {
@@ -109,7 +125,7 @@ struct SettingsView: View {
                             .foregroundColor(Theme.accent)
                             .shadow(color: Theme.accentGlow, radius: 4)
                         Text(s.status.uppercased())
-                            .font(.system(size: 10, design: .monospaced))
+                            .novaFont(10, design: .monospaced)
                             .foregroundColor(Theme.accent)
                     }
                 }
@@ -121,7 +137,7 @@ struct SettingsView: View {
                 Task { await loadStatus() }
             } label: {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 13))
+                    .novaFont(13)
                     .foregroundColor(Theme.textSecondary)
             }
         }
@@ -140,24 +156,24 @@ struct SettingsView: View {
     private func navRow(icon: String, label: String, detail: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .novaFont(16)
                 .foregroundColor(Theme.accent)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(label)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .novaFont(12, weight: .medium, design: .monospaced)
                     .foregroundColor(Theme.textPrimary)
                     .tracking(1)
                 Text(detail)
-                    .font(.system(size: 10, design: .monospaced))
+                    .novaFont(10, design: .monospaced)
                     .foregroundColor(Theme.textSecondary)
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .medium))
+                .novaFont(11, weight: .medium)
                 .foregroundColor(Theme.textSecondary)
         }
         .padding(.horizontal, 20)
@@ -175,17 +191,17 @@ struct SettingsView: View {
     private func infoRow(icon: String, label: String, detail: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .novaFont(16)
                 .foregroundColor(Theme.textSecondary)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(label)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .novaFont(12, weight: .medium, design: .monospaced)
                     .foregroundColor(Theme.textPrimary)
                     .tracking(1)
                 Text(detail)
-                    .font(.system(size: 10, design: .monospaced))
+                    .novaFont(10, design: .monospaced)
                     .foregroundColor(Theme.textSecondary)
             }
 
@@ -206,17 +222,17 @@ struct SettingsView: View {
     private var autoSendRow: some View {
         HStack(spacing: 14) {
             Image(systemName: "mic.fill")
-                .font(.system(size: 16))
+                .novaFont(16)
                 .foregroundColor(Theme.accent)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("AUTO-SEND ON STOP")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .novaFont(12, weight: .medium, design: .monospaced)
                     .foregroundColor(Theme.textPrimary)
                     .tracking(1)
                 Text("Send transcript automatically when recording stops")
-                    .font(.system(size: 10, design: .monospaced))
+                    .novaFont(10, design: .monospaced)
                     .foregroundColor(Theme.textSecondary)
             }
 
@@ -244,12 +260,12 @@ struct SettingsView: View {
         } label: {
             HStack(spacing: 14) {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
-                    .font(.system(size: 16))
+                    .novaFont(16)
                     .foregroundColor(Theme.accent)
                     .frame(width: 24)
 
                 Text("LOG OUT")
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .novaFont(12, weight: .bold, design: .monospaced)
                     .foregroundColor(Theme.accent)
                     .tracking(2)
 
@@ -272,6 +288,13 @@ struct SettingsView: View {
             statusError = error.localizedDescription
         }
         statusIsLoading = false
+    }
+
+    private func loadPendingMemoryCount() async {
+        // A hint on a row, not worth an error message if it fails
+        if let pending = try? await APIService.fetchPendingMemories() {
+            pendingMemoryCount = pending.count
+        }
     }
 }
 

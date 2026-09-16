@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct NovaApp: App {
     @StateObject private var authManager = AuthManager()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -16,6 +17,11 @@ struct NovaApp: App {
             }
             .environmentObject(authManager)
             .preferredColorScheme(.dark)
+            // Icon buttons have fixed frames; past this size their symbols would spill out
+            .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { authManager.validateSession() }
+            }
         }
     }
 
