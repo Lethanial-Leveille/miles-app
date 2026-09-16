@@ -22,12 +22,12 @@ struct LoginView: View {
 
                 // App name
                 Text("NOVA")
-                    .font(.system(size: 38, weight: .bold, design: .monospaced))
+                    .novaFont(38, weight: .bold, design: .monospaced)
                     .foregroundColor(Theme.textPrimary)
                     .tracking(12)
 
                 Text("M.I.L.E.S. INTERFACE")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .novaFont(11, weight: .medium, design: .monospaced)
                     .foregroundColor(Theme.textSecondary)
                     .tracking(4)
                     .padding(.top, 6)
@@ -40,10 +40,10 @@ struct LoginView: View {
                             ProgressView().tint(Theme.background)
                         } else {
                             Image(systemName: "faceid")
-                                .font(.system(size: 20, weight: .regular))
+                                .novaFont(20, weight: .regular)
                                 .foregroundColor(Theme.background)
                             Text("FACE ID")
-                                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                .novaFont(14, weight: .bold, design: .monospaced)
                                 .tracking(3)
                                 .foregroundColor(Theme.background)
                         }
@@ -65,7 +65,7 @@ struct LoginView: View {
                     }
                 } label: {
                     Text(showPassword ? "HIDE PASSWORD" : "USE PASSWORD")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .novaFont(11, weight: .medium, design: .monospaced)
                         .foregroundColor(Theme.textSecondary)
                         .tracking(2)
                 }
@@ -75,12 +75,12 @@ struct LoginView: View {
                 if showPassword {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("ACCESS CODE")
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .novaFont(10, weight: .medium, design: .monospaced)
                             .foregroundColor(Theme.textSecondary)
                             .tracking(3)
 
                         SecureField("", text: $password)
-                            .font(.system(size: 16, weight: .regular, design: .monospaced))
+                            .novaFont(16, weight: .regular, design: .monospaced)
                             .foregroundColor(Theme.textPrimary)
                             .tint(Theme.accent)
                             .padding(.horizontal, 16)
@@ -99,7 +99,7 @@ struct LoginView: View {
                                     ProgressView().tint(Theme.background)
                                 } else {
                                     Text("AUTHENTICATE")
-                                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                        .novaFont(13, weight: .bold, design: .monospaced)
                                         .tracking(3)
                                         .foregroundColor(Theme.background)
                                 }
@@ -120,7 +120,7 @@ struct LoginView: View {
                 // Error display
                 if let msg = errorMessage {
                     Text(msg)
-                        .font(.system(size: 12, design: .monospaced))
+                        .novaFont(12, design: .monospaced)
                         .foregroundColor(Theme.textPrimary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
