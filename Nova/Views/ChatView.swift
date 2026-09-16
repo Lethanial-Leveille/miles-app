@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ChatView: View {
-    @StateObject private var service = WebSocketService()
+    @StateObject private var service = ChatService()
     @StateObject private var speech  = SpeechService()
     @AppStorage("autoSendOnStop") private var autoSend = false
 
@@ -27,7 +27,7 @@ struct ChatView: View {
                             }
 
                             if service.isTyping {
-                                NovaTypingIndicator()
+                                NovaTypingIndicator(startedAt: service.turnStartedAt ?? Date())
                                     .id("typing")
                             }
 
@@ -35,6 +35,7 @@ struct ChatView: View {
                         }
                         .padding(.top, 12)
                     }
+                    .scrollDismissesKeyboard(.interactively)
                     .onChange(of: service.messages.count) {
                         withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom") }
                     }
@@ -45,7 +46,7 @@ struct ChatView: View {
 
                 if let error = service.errorMessage {
                     Text(error)
-                        .font(.system(size: 12, design: .monospaced))
+                        .novaFont(12, design: .monospaced)
                         .foregroundColor(Theme.textPrimary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
@@ -53,7 +54,7 @@ struct ChatView: View {
 
                 if speech.permissionDenied {
                     Text("Microphone or speech recognition permission denied. Enable in Settings.")
-                        .font(.system(size: 11, design: .monospaced))
+                        .novaFont(11, design: .monospaced)
                         .foregroundColor(Theme.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 16)
@@ -67,15 +68,18 @@ struct ChatView: View {
                 inputBar
             }
         }
-        .task { await service.connect() }
-        .onDisappear { service.disconnect() }
+        .task {
+            await service.checkConnection()
+            await service.loadRecentConversation()
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: service.replyCount)
         // Keep inputText in sync with the live speech transcript
         .onChange(of: speech.transcript) { _, newValue in
             inputText = newValue
         }
         // If auto-send is on, send the moment recording stops
         .onChange(of: speech.isRecording) { _, nowRecording in
-            if !nowRecording && autoSend && !inputText.trimmingCharacters(in: .whitespaces).isEmpty {
+            if !nowRecording && autoSend && !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 sendMessage()
             }
         }
@@ -83,22 +87,37 @@ struct ChatView: View {
 
     // MARK: Header
 
+    private var isOnline: Bool { service.connection == .online }
+
+    private var connectionLabel: String {
+        switch service.connection {
+        case .checking: return "CONNECTING..."
+        case .online:   return "ONLINE"
+        case .offline:  return "OFFLINE  TAP TO RETRY"
+        }
+    }
+
     private var header: some View {
         HStack(spacing: 10) {
             Circle()
                 .frame(width: 8, height: 8)
-                .foregroundColor(service.isConnected ? Theme.accent : Theme.textSecondary)
-                .shadow(color: service.isConnected ? Theme.accentGlow : .clear, radius: 4)
+                .foregroundColor(isOnline ? Theme.accent : Theme.textSecondary)
+                .shadow(color: isOnline ? Theme.accentGlow : .clear, radius: 4)
 
             Text("NOVA")
-                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                .novaFont(14, weight: .bold, design: .monospaced)
                 .foregroundColor(Theme.textPrimary)
                 .tracking(4)
 
-            Text(service.isConnected ? "ONLINE" : "CONNECTING...")
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(service.isConnected ? Theme.accent : Theme.textSecondary)
-                .tracking(2)
+            Button {
+                Task { await service.checkConnection() }
+            } label: {
+                Text(connectionLabel)
+                    .novaFont(10, design: .monospaced)
+                    .foregroundColor(isOnline ? Theme.accent : Theme.textSecondary)
+                    .tracking(2)
+            }
+            .disabled(service.connection != .offline)
 
             Spacer()
         }
@@ -108,6 +127,10 @@ struct ChatView: View {
 
     // MARK: Input bar
 
+    private var canSend: Bool {
+        !service.isTyping && !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var inputBar: some View {
         HStack(spacing: 8) {
             // Mic button — left of the text field
@@ -115,7 +138,7 @@ struct ChatView: View {
                 Task { await speech.toggleRecording() }
             } label: {
                 Image(systemName: speech.isRecording ? "mic.fill" : "mic")
-                    .font(.system(size: 15, weight: .medium))
+                    .novaFont(15, weight: .medium)
                     .foregroundColor(speech.isRecording ? Theme.accent : Theme.textSecondary)
                     .frame(width: 38, height: 38)
                     .background(Theme.surface)
@@ -124,8 +147,9 @@ struct ChatView: View {
                     .animation(.easeInOut(duration: 0.25), value: speech.isRecording)
             }
 
-            TextField("", text: $inputText)
-                .font(.system(size: 15))
+            TextField("", text: $inputText, prompt: Text("Message Nova").foregroundColor(Theme.textSecondary), axis: .vertical)
+                .lineLimit(1...5)
+                .novaFont(15)
                 .foregroundColor(Theme.textPrimary)
                 .tint(Theme.accent)
                 .padding(.horizontal, 14)
@@ -139,19 +163,26 @@ struct ChatView: View {
                         )
                 )
                 .animation(.easeInOut(duration: 0.25), value: speech.isRecording)
-                .disabled(!service.isConnected)
-                .onSubmit { sendMessage() }
+                // onSubmit also fired when the field lost focus, so switching tabs sent a half
+                // written message. In a vertical field the return key types a newline instead,
+                // and exactly one newline typed at the end is the return key and nothing else:
+                // a tab switch adds no character, and a paste adds more than one.
+                .onChange(of: inputText) { oldValue, newValue in
+                    guard newValue.count == oldValue.count + 1, newValue.hasSuffix("\n") else { return }
+                    inputText = String(newValue.dropLast())
+                    sendMessage()
+                }
 
             Button(action: sendMessage) {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 14, weight: .bold))
+                    .novaFont(14, weight: .bold)
                     .foregroundColor(Theme.background)
                     .frame(width: 38, height: 38)
                     .background(Theme.accent)
                     .clipShape(RoundedRectangle(cornerRadius: 2))
                     .shadow(color: Theme.accentGlow, radius: 6)
             }
-            .disabled(!service.isConnected || inputText.trimmingCharacters(in: .whitespaces).isEmpty)
+            .disabled(!canSend)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -160,8 +191,10 @@ struct ChatView: View {
     // MARK: Actions
 
     private func sendMessage() {
-        let text = inputText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
+        // One turn at a time: a calendar change waits for the very next message to be
+        // its yes or no, so overlapping sends could answer the wrong question
+        guard canSend else { return }
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         if speech.isRecording { speech.stopRecording() }
         inputText = ""
         Task { await service.send(text: text) }
