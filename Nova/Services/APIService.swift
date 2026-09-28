@@ -28,9 +28,11 @@ enum APIService {
     // Set by AuthManager.init() — called whenever any request gets a 401
     static var onUnauthorized: (() -> Void)?
 
-    // A chat turn blocks until every tool call and the Pi's own speech playback finish,
-    // which can outlast URLSession's 60 second default
+    // A chat turn blocks until every tool call finishes, which can outlast URLSession's
+    // 60 second default
     private static let chatTimeout: TimeInterval = 180
+    // Synthesis runs about a second to first audio, and the route sends the file whole
+    private static let speakTimeout: TimeInterval = 60
 
     // MARK: Public endpoints
 
@@ -132,13 +134,19 @@ enum APIService {
         return try await perform(request)
     }
 
-    static func chat(text: String) async throws -> String {
+    // How the reply will be rendered, not which device asked. The Pi decides whether to play
+    // a reply in the room from the device, so an app turn on voice stays silent there.
+    enum Channel: String {
+        case text     // written for a screen, markdown allowed
+        case voice    // written to be heard: no markdown, symbols spelled out
+    }
+
+    static func chat(text: String, channel: Channel = .text) async throws -> String {
         var request = try await authenticatedRequest(path: "/chat")
         request.httpMethod = "POST"
         request.timeoutInterval = chatTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        // "text" tells Nova she is writing to a screen; without it she formats for a speaker
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["message": text, "channel": "text"])
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["message": text, "channel": channel.rawValue])
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try checkStatus(response, data: data)
@@ -164,7 +172,7 @@ enum APIService {
     // The same turn as chat(text:), delivered as it is written. The Pi runs the turn to the
     // end whatever happens to this connection, so a dropped stream is a lost view of a turn
     // that still happened, never a turn that did not run.
-    static func chatStream(text: String) -> AsyncThrowingStream<ChatEvent, Error> {
+    static func chatStream(text: String, channel: Channel = .text) -> AsyncThrowingStream<ChatEvent, Error> {
         AsyncThrowingStream<ChatEvent, Error> { continuation in
             let work = Task {
                 do {
@@ -173,7 +181,7 @@ enum APIService {
                     request.timeoutInterval = chatTimeout
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                    request.httpBody = try JSONSerialization.data(withJSONObject: ["message": text, "channel": "text"])
+                    request.httpBody = try JSONSerialization.data(withJSONObject: ["message": text, "channel": channel.rawValue])
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     // A refusal is a short JSON body, not a stream, so read it whole for its reason
@@ -232,6 +240,20 @@ enum APIService {
             // a reply into a stream nobody is consuming
             continuation.onTermination = { _ in work.cancel() }
         }
+    }
+
+    // A finished reply in Nova's own voice, as mp3. The Pi renders it with the same voice,
+    // model and pronunciation table as the room speaker, and synthesizes the whole reply in
+    // one request because eleven_v3 voices each request separately: sentence by sentence she
+    // would sound like a different speaker partway through. 413 over 2000 characters, 502
+    // when ElevenLabs fails.
+    static func speak(text: String) async throws -> Data {
+        var request = try await jsonRequest(path: "/speak", method: "POST", body: ["text": text])
+        request.timeoutInterval = speakTimeout
+        request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try checkStatus(response, data: data)
+        return data
     }
 
     // MARK: Private helpers

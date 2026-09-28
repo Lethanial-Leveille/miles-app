@@ -13,6 +13,26 @@ final class SpeechService: ObservableObject {
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var silenceTimer: Timer?
+    // Held by listen() until the recording ends, whatever ended it
+    private var finished: CheckedContinuation<String, Never>?
+
+    // How loud the microphone is right now, 0 to 1. Not published: it changes dozens of times a
+    // second, and the Talk Mode waveform reads it once per frame instead.
+    private(set) var inputLevel: Float = 0
+
+    // One whole utterance: starts recording, and returns what was heard once the silence stop
+    // or a cancel ends it. nil when the microphone could not start at all, so a caller looping
+    // on this stops instead of spinning.
+    func listen() async -> String? {
+        if isRecording { stopRecording() }
+        await beginRecording()
+        guard isRecording else { return nil }
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { finished = $0 }
+        } onCancel: {
+            Task { @MainActor in self.stopRecording() }
+        }
+    }
 
     func toggleRecording() async {
         if isRecording {
@@ -32,6 +52,11 @@ final class SpeechService: ObservableObject {
         recognitionRequest = nil
         recognitionTask = nil
         isRecording = false
+        inputLevel = 0
+
+        let waiting = finished
+        finished = nil
+        waiting?.resume(returning: transcript)
     }
 
     // MARK: Private
@@ -44,7 +69,11 @@ final class SpeechService: ObservableObject {
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+            // playAndRecord rather than record: record silences every player in the app, and
+            // Talk Mode plays Nova's voice between turns without reconfiguring anything.
+            // defaultToSpeaker because playAndRecord otherwise plays through the earpiece.
+            try session.setCategory(.playAndRecord, mode: .default,
+                                    options: [.defaultToSpeaker, .allowBluetoothA2DP, .duckOthers])
             try session.setActive(true, options: .notifyOthersOnDeactivation)
 
             recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
@@ -55,8 +84,12 @@ final class SpeechService: ObservableObject {
 
             let inputNode = audioEngine.inputNode
             let format = inputNode.outputFormat(forBus: 0)
+            // The tap runs on the audio thread, so it feeds the request it was given rather than
+            // reading a property of this main actor object
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-                self?.recognitionRequest?.append(buffer)
+                request.append(buffer)
+                let level = Self.level(of: buffer)
+                Task { @MainActor in self?.inputLevel = level }
             }
 
             audioEngine.prepare()
@@ -90,6 +123,16 @@ final class SpeechService: ObservableObject {
                 self.stopRecording()
             }
         }
+    }
+
+    // Root mean square of the first channel, mapped from about -50 dB (a quiet room) up to 0
+    nonisolated private static func level(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
+        var sum: Float = 0
+        for i in 0..<Int(buffer.frameLength) { sum += samples[i] * samples[i] }
+        let rms = (sum / Float(buffer.frameLength)).squareRoot()
+        let decibels = 20 * log10(max(rms, 0.000_001))
+        return min(max((decibels + 50) / 50, 0), 1)
     }
 
     private func requestPermissions() async -> Bool {

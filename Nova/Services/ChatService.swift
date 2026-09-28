@@ -55,7 +55,10 @@ final class ChatService: ObservableObject {
         }
     }
 
-    func send(text: String) async {
+    // Returns the reply as the Pi saved it, empty when Nova chose not to answer, or nil when
+    // the turn failed or its end never arrived. Talk Mode speaks what comes back.
+    @discardableResult
+    func send(text: String, channel: APIService.Channel = .text) async -> String? {
         // Add the user bubble immediately so the UI feels instant
         messages.append(ChatMessage(role: .user, text: text))
         turnStartedAt = Date()
@@ -74,9 +77,10 @@ final class ChatService: ObservableObject {
         var streamed = ""
         var bubble: UUID? = nil
         var sawEvent = false
+        var reply: String? = nil
 
         do {
-            for try await event in APIService.chatStream(text: text) {
+            for try await event in APIService.chatStream(text: text, channel: channel) {
                 sawEvent = true
                 connection = .online
 
@@ -102,10 +106,12 @@ final class ChatService: ObservableObject {
                     bubble = nil
                     isTyping = true
 
-                case .done(let reply):
+                case .done(let final):
                     // The canonical text, exactly as it went into history, including the lines
                     // the backend adds in code. An empty one is a real answer: not meant for her.
-                    _ = write(reply.trimmingCharacters(in: .whitespacesAndNewlines), into: bubble)
+                    let trimmed = final.trimmingCharacters(in: .whitespacesAndNewlines)
+                    _ = write(trimmed, into: bubble)
+                    reply = trimmed
                     replyCount += 1
 
                 case .failure(let reason):
@@ -120,29 +126,32 @@ final class ChatService: ObservableObject {
             // blocking route would only be refused the same way
             if case APIError.unauthorized = error {
                 errorMessage = error.localizedDescription
-                return
+                return nil
             }
             guard sawEvent else {
-                await sendWithoutStreaming(text: text)
-                return
+                return await sendWithoutStreaming(text: text, channel: channel)
             }
             if error is URLError { connection = .offline }
             errorMessage = error.localizedDescription
             // Whatever arrived before the break stays on screen: she did write it
         }
+        return reply
     }
 
     // The blocking route, one request and the whole reply at the end. The fallback for a
     // stream that never started.
-    private func sendWithoutStreaming(text: String) async {
+    private func sendWithoutStreaming(text: String, channel: APIService.Channel) async -> String? {
         do {
-            let reply = try await APIService.chat(text: text)
+            let reply = try await APIService.chat(text: text, channel: channel)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             connection = .online
-            messages.append(ChatMessage(role: .nova, text: reply.trimmingCharacters(in: .whitespacesAndNewlines)))
+            messages.append(ChatMessage(role: .nova, text: reply))
             replyCount += 1
+            return reply
         } catch {
             if error is URLError { connection = .offline }
             errorMessage = error.localizedDescription
+            return nil
         }
     }
 

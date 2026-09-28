@@ -6,6 +6,7 @@ struct ChatView: View {
     @AppStorage("autoSendOnStop") private var autoSend = false
 
     @State private var inputText = ""
+    @State private var talking = false
 
     var body: some View {
         ZStack {
@@ -78,6 +79,9 @@ struct ChatView: View {
             await service.loadRecentConversation()
         }
         .sensoryFeedback(.impact(weight: .light), trigger: service.replyCount)
+        .fullScreenCover(isPresented: $talking) {
+            TalkView(chat: service)
+        }
         // Keep inputText in sync with the live speech transcript
         .onChange(of: speech.transcript) { _, newValue in
             inputText = newValue
@@ -125,6 +129,19 @@ struct ChatView: View {
             .disabled(service.connection != .offline)
 
             Spacer()
+
+            Button {
+                // Talk Mode brings its own microphone, and two recordings would fight over it
+                if speech.isRecording { speech.stopRecording() }
+                talking = true
+            } label: {
+                Image(systemName: "waveform")
+                    .novaFont(16, weight: .medium)
+                    .foregroundColor(Theme.accent)
+                    .shadow(color: Theme.accentGlow, radius: 6)
+            }
+            .disabled(service.isResponding)
+            .accessibilityLabel("Talk Mode")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
