@@ -203,11 +203,11 @@ Nova/
 
 ## Running Locally
 
-This app requires the M.I.L.E.S. Pi backend running and reachable. The Xcode project file is not checked in, so building it takes a few steps:
+This app requires the M.I.L.E.S. Pi backend running and reachable.
 
 1. Clone the repo: `git clone https://github.com/Lethanial-Leveille/miles-app.git`
-2. In Xcode 16 or later, create a new iOS App project named `Nova` in the cloned folder, with a deployment target of iOS 17.6, and use the `Nova/` folder as its sources
-3. Add `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription` to the target's Info settings
+2. Open `Nova.xcodeproj` in Xcode 16 or later
+3. Under Signing & Capabilities, pick your own team and change the bundle identifier
 4. Update `Nova/Utilities/Constants.swift` to point to your own backend URL
 5. Build and run on a physical iPhone (Face ID and on device speech need real hardware)
 

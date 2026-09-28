@@ -1,7 +1,6 @@
 # Project-specific exclusions
 CLAUDE.md
 NOVA_APP_BACKEND.md
-Nova.xcodeproj/
 
 # macOS
 .DS_Store
