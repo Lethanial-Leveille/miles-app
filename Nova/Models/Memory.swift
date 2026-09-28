@@ -38,3 +38,24 @@ struct MemoryPage: Decodable {
     let total: Int
     let memories: [Memory]
 }
+
+// PATCH /memories/{id}. An edit makes a new row, so id is the one to show from now on.
+// changed is false when the text matched what was already stored.
+struct MemoryEdit: Decodable {
+    let id: Int
+    let replaced: Int?
+    let changed: Bool
+}
+
+// One wording in a memory's chain, from GET /memories/{id}/history
+struct MemoryVersion: Decodable, Identifiable {
+    let id: Int
+    let content: String
+    let status: String
+    let createdAt: String?
+    let supersededBy: Int?
+    let supersededAt: String?
+
+    var createdDate: Date? { ServerDate.parse(createdAt) }
+    var supersededDate: Date? { ServerDate.parse(supersededAt) }
+}

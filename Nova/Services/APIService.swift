@@ -7,6 +7,8 @@ enum APIError: LocalizedError {
     case serverError(Int)
     case decodingError(String)
     case streamEndedEarly
+    // The server refused and said why, like "That memory is already stored"
+    case rejected(String)
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +18,7 @@ enum APIError: LocalizedError {
         case .serverError(let code):    return "Server error (\(code))."
         case .decodingError(let msg):   return "Data error: \(msg)"
         case .streamEndedEarly:         return "The reply stopped partway through."
+        case .rejected(let reason):     return reason
         }
     }
 }
@@ -30,6 +33,12 @@ enum APIService {
     private static let chatTimeout: TimeInterval = 180
 
     // MARK: Public endpoints
+
+    // Uptime, temperature, latency and whether each service runs
+    static func fetchStatusDetails() async throws -> SystemDetails {
+        let request = try await authenticatedRequest(path: "/status/details")
+        return try await perform(request)
+    }
 
     static func fetchStatus() async throws -> SystemStatus {
         let request = try await authenticatedRequest(path: "/status")
@@ -51,6 +60,63 @@ enum APIService {
         var request = try await authenticatedRequest(path: "/memories/\(id)/approve")
         request.httpMethod = "POST"
         try await performNoContent(request)
+    }
+
+    // Stored exactly as typed, explicit and active. The server answers 409 for a duplicate.
+    static func addMemory(content: String) async throws {
+        let request = try await jsonRequest(path: "/memories", method: "POST", body: ["content": content])
+        try await performNoContent(request)
+    }
+
+    // An edit supersedes the memory rather than rewriting it, so the id can change and the
+    // old wording stays readable through fetchMemoryHistory. Editing a pending one approves it.
+    static func editMemory(id: Int, content: String) async throws -> MemoryEdit {
+        let request = try await jsonRequest(path: "/memories/\(id)", method: "PATCH", body: ["content": content])
+        return try await perform(request)
+    }
+
+    // What the memory says now and every wording it replaced, newest first
+    static func fetchMemoryHistory(id: Int) async throws -> [MemoryVersion] {
+        let request = try await authenticatedRequest(path: "/memories/\(id)/history")
+        return try await perform(request)
+    }
+
+    // Timers and reminders together, soonest first, told apart by kind
+    static func fetchReminders() async throws -> [Reminder] {
+        let request = try await authenticatedRequest(path: "/reminders")
+        return try await perform(request)
+    }
+
+    static func cancelReminder(id: Int) async throws {
+        var request = try await authenticatedRequest(path: "/reminders/\(id)")
+        request.httpMethod = "DELETE"
+        try await performNoContent(request)
+    }
+
+    // From the start of today, so this morning's events still show
+    static func fetchCalendar(days: Int = 7) async throws -> CalendarWeek {
+        let request = try await authenticatedRequest(path: "/calendar/events?days=\(days)")
+        return try await perform(request)
+    }
+
+    // MILES calendar events only; anything else is a 404. A new start alone keeps the length.
+    // Returns the sentence the Pi wrote about what changed.
+    static func changeEvent(id: String, title: String? = nil, start: Date? = nil, end: Date? = nil) async throws -> String {
+        var body: [String: Any] = [:]
+        if let title { body["title"] = title }
+        // With the phone's offset, so the Pi never has to guess which timezone was meant
+        if let start { body["start"] = eventTimeFormatter.string(from: start) }
+        if let end { body["end"] = eventTimeFormatter.string(from: end) }
+        let request = try await jsonRequest(path: "/calendar/events/\(pathSegment(id))", method: "PATCH", body: body)
+        let answer: CalendarResult = try await perform(request)
+        return answer.result
+    }
+
+    static func deleteEvent(id: String) async throws -> String {
+        var request = try await authenticatedRequest(path: "/calendar/events/\(pathSegment(id))")
+        request.httpMethod = "DELETE"
+        let answer: CalendarResult = try await perform(request)
+        return answer.result
     }
 
     // Deletes active and pending memories alike, so it doubles as "reject"
@@ -75,7 +141,7 @@ enum APIService {
         request.httpBody = try JSONSerialization.data(withJSONObject: ["message": text, "channel": "text"])
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        try checkStatus(response)
+        try checkStatus(response, data: data)
 
         // Server returns {"response": "..."}
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -89,6 +155,7 @@ enum APIService {
     // inside the JSON, and every payload is {"text": ...}, errors included.
     enum ChatEvent: Sendable {
         case delta(String)    // reply text as Nova writes it
+        case stage(String)    // what Nova is doing while a tool runs, "Checking your calendar"
         case reset            // drop everything streamed so far and start the reply over
         case done(String)     // the whole reply, exactly as the Pi saved it to history
         case failure(String)  // the turn broke on the Pi. It is finished either way.
@@ -109,7 +176,12 @@ enum APIService {
                     request.httpBody = try JSONSerialization.data(withJSONObject: ["message": text, "channel": "text"])
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    try checkStatus(response)
+                    // A refusal is a short JSON body, not a stream, so read it whole for its reason
+                    if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                        var body = Data()
+                        for try await byte in bytes { body.append(byte) }
+                        try checkStatus(response, data: body)
+                    }
 
                     // The kind named by the last "event:" line, which the next "data:" line belongs to
                     var kind = ""
@@ -133,6 +205,8 @@ enum APIService {
                         switch kind {
                         case "delta":
                             continuation.yield(.delta(value))
+                        case "stage":
+                            continuation.yield(.stage(value))
                         case "reset":
                             continuation.yield(.reset)
                         case "done":
@@ -162,6 +236,30 @@ enum APIService {
 
     // MARK: Private helpers
 
+    private struct CalendarResult: Decodable {
+        let result: String
+    }
+
+    private static let eventTimeFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = .current
+        return formatter
+    }()
+
+    // Google event ids are letters and digits today, but an id is not ours to trust in a path
+    private static func pathSegment(_ raw: String) -> String {
+        raw.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? raw
+    }
+
+    // A request carrying a JSON body, for the routes that create or change something
+    private static func jsonRequest(path: String, method: String, body: [String: Any]) async throws -> URLRequest {
+        var request = try await authenticatedRequest(path: path)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return request
+    }
+
     // Builds a GET URLRequest with the Authorization header already attached
     private static func authenticatedRequest(path: String) async throws -> URLRequest {
         guard let url = URL(string: "\(Constants.API.baseURL)\(path)") else {
@@ -179,7 +277,7 @@ enum APIService {
     private static func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        try checkStatus(response)
+        try checkStatus(response, data: data)
 
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -195,12 +293,13 @@ enum APIService {
 
     // Sends a request whose response body the app has no use for, and only checks status
     private static func performNoContent(_ request: URLRequest) async throws {
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try checkStatus(response)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try checkStatus(response, data: data)
     }
 
-    // Converts HTTP status codes into typed errors
-    private static func checkStatus(_ response: URLResponse) throws {
+    // Converts HTTP status codes into typed errors. FastAPI puts its reason in "detail",
+    // and that sentence is more use on screen than a bare status code.
+    private static func checkStatus(_ response: URLResponse, data: Data? = nil) throws {
         guard let http = response as? HTTPURLResponse else { return }
 
         switch http.statusCode {
@@ -208,8 +307,14 @@ enum APIService {
         case 401:
             onUnauthorized?()
             throw APIError.unauthorized
-        case 404:           throw APIError.notFound
-        default:            throw APIError.serverError(http.statusCode)
+        default:
+            if let data,
+               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let detail = object["detail"] as? String, !detail.isEmpty {
+                throw APIError.rejected(detail)
+            }
+            if http.statusCode == 404 { throw APIError.notFound }
+            throw APIError.serverError(http.statusCode)
         }
     }
 }

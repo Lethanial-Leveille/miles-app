@@ -4,6 +4,8 @@ import SwiftUI
 // The previous Timer was never invalidated and kept firing after the indicator disappeared.
 struct NovaTypingIndicator: View {
     let startedAt: Date
+    // "Checking your calendar" while a tool runs, nil while Nova is only thinking
+    var stage: String? = nil
 
     // A quick reply should never flash a clock; only a turn slow enough to feel stuck shows one
     private let clockDelay: TimeInterval = 3
@@ -25,7 +27,14 @@ struct NovaTypingIndicator: View {
                     }
                     .animation(.easeInOut(duration: 0.3), value: phase)
 
-                    if elapsed >= clockDelay {
+                    // A stage is news worth showing at once; plain thinking waits for the delay
+                    if let stage {
+                        Text(elapsed >= clockDelay ? "\(stage.uppercased()) \(Int(elapsed))s" : stage.uppercased())
+                            .novaFont(10, design: .monospaced)
+                            .monospacedDigit()
+                            .foregroundColor(Theme.accent)
+                            .tracking(1)
+                    } else if elapsed >= clockDelay {
                         Text("THINKING \(Int(elapsed))s")
                             .novaFont(10, design: .monospaced)
                             .monospacedDigit()

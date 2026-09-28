@@ -9,6 +9,9 @@ struct MemoriesView: View {
     @State private var isLoadingMore: Bool = false
     @State private var errorMessage:  String? = nil
     @State private var actionError:   String? = nil
+    @State private var isAdding:      Bool = false
+    // The pending memory whose editor is open
+    @State private var editingPending: Memory? = nil
 
     private let pageSize = 50
 
@@ -57,6 +60,21 @@ struct MemoriesView: View {
             }
         }
         .task { await load(showSpinner: true) }
+        .sheet(isPresented: $isAdding) {
+            MemoryEditor(title: "NEW MEMORY") { text in
+                try await APIService.addMemory(content: text)
+                await load(showSpinner: false)
+            }
+            .presentationDetents([.medium, .large])
+        }
+        .sheet(item: $editingPending) { memory in
+            MemoryEditor(title: "EDIT MEMORY", initial: memory.content,
+                         note: "Saving your wording also approves it.") { text in
+                _ = try await APIService.editMemory(id: memory.id, content: text)
+                await load(showSpinner: false)
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
     private var header: some View {
@@ -75,6 +93,17 @@ struct MemoriesView: View {
                 .foregroundColor(Theme.textPrimary)
                 .tracking(4)
             Spacer()
+            Button {
+                isAdding = true
+            } label: {
+                Image(systemName: "plus")
+                    .novaFont(14, weight: .semibold)
+                    .foregroundColor(Theme.accent)
+                    .frame(width: 30, height: 30)
+            }
+            .accessibilityLabel("Add memory")
+            .disabled(isLoading)
+
             Text("\(total)")
                 .novaFont(11, design: .monospaced)
                 .foregroundColor(Theme.accent)
@@ -101,6 +130,16 @@ struct MemoriesView: View {
                         )
                         .listRowBackground(Theme.surface)
                         .listRowSeparatorTint(Theme.accent.opacity(0.1))
+                        // Nova's guess is often almost right; fixing the wording is quicker than
+                        // rejecting it and adding a new one
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                editingPending = memory
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(Theme.accent)
+                        }
                     }
                 } header: {
                     sectionHeader("AWAITING APPROVAL", count: pending.count)
@@ -109,14 +148,18 @@ struct MemoriesView: View {
 
             Section {
                 ForEach(memories) { memory in
-                    MemoryRow(memory: memory)
-                        .listRowBackground(Theme.surface)
-                        .listRowSeparatorTint(Theme.accent.opacity(0.1))
-                        .onAppear {
-                            if memory.id == memories.last?.id {
-                                Task { await loadMore() }
-                            }
+                    NavigationLink {
+                        MemoryDetailView(memory: memory) { await load(showSpinner: false) }
+                    } label: {
+                        MemoryRow(memory: memory)
+                    }
+                    .listRowBackground(Theme.surface)
+                    .listRowSeparatorTint(Theme.accent.opacity(0.1))
+                    .onAppear {
+                        if memory.id == memories.last?.id {
+                            Task { await loadMore() }
                         }
+                    }
                 }
                 .onDelete(perform: deleteMemories)
 

@@ -27,7 +27,7 @@ struct ChatView: View {
                             }
 
                             if service.isTyping {
-                                NovaTypingIndicator(startedAt: service.turnStartedAt ?? Date())
+                                NovaTypingIndicator(startedAt: service.turnStartedAt ?? Date(), stage: service.stage)
                                     .id("typing")
                             }
 
@@ -41,6 +41,11 @@ struct ChatView: View {
                     }
                     .onChange(of: service.isTyping) {
                         withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom") }
+                    }
+                    // A streaming reply grows in place without changing the count, so follow its text.
+                    // No animation: one per token would queue up and lag behind the words.
+                    .onChange(of: service.messages.last?.text) {
+                        proxy.scrollTo("bottom")
                     }
                 }
 
@@ -128,7 +133,7 @@ struct ChatView: View {
     // MARK: Input bar
 
     private var canSend: Bool {
-        !service.isTyping && !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !service.isResponding && !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var inputBar: some View {

@@ -14,6 +14,11 @@ final class ChatService: ObservableObject {
     @Published var messages:     [ChatMessage] = []
     @Published var connection:   Connection = .checking
     @Published var isTyping:     Bool = false
+    // True for the whole turn. isTyping goes false once words arrive, but the reply is still
+    // coming, and a second send in that window would start a turn on top of this one.
+    @Published private(set) var isResponding = false
+    // What Nova is doing while a tool runs, shown in place of THINKING
+    @Published private(set) var stage: String? = nil
     @Published var errorMessage: String? = nil
     // When the current turn began, so the typing indicator can show how long it has been waiting
     @Published private(set) var turnStartedAt: Date? = nil
@@ -55,8 +60,14 @@ final class ChatService: ObservableObject {
         messages.append(ChatMessage(role: .user, text: text))
         turnStartedAt = Date()
         isTyping = true
+        isResponding = true
+        stage = nil
         errorMessage = nil
-        defer { isTyping = false }
+        defer {
+            isTyping = false
+            isResponding = false
+            stage = nil
+        }
 
         // Everything streamed so far and the bubble showing it. The bubble is made on the
         // first delta, so a turn Nova answers with silence never leaves an empty one behind.
@@ -74,7 +85,14 @@ final class ChatService: ObservableObject {
                     streamed += piece
                     // The words are arriving, so the waiting indicator has nothing left to say
                     isTyping = false
+                    stage = nil
                     bubble = write(streamed, into: bubble)
+
+                case .stage(let words):
+                    // A tool can start after Nova has already written a sentence, so the
+                    // indicator comes back below that bubble rather than replacing it
+                    stage = words
+                    isTyping = true
 
                 case .reset:
                     // What Nova says alongside a tool call is not part of the answer the tool
@@ -98,6 +116,12 @@ final class ChatService: ObservableObject {
             // A turn that reached the Pi finishes there whatever happens to this connection,
             // tools and saving included, so asking again would run it twice. Only a turn that
             // never started is safe to retry, which is also the old backend with no stream route.
+            // An expired login has already sent the app back to the login screen, and the
+            // blocking route would only be refused the same way
+            if case APIError.unauthorized = error {
+                errorMessage = error.localizedDescription
+                return
+            }
             guard sawEvent else {
                 await sendWithoutStreaming(text: text)
                 return

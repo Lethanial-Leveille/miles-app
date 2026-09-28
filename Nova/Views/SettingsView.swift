@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var statusIsLoading = true
     @State private var statusError: String?
     @State private var pendingMemoryCount = 0
+    @State private var reminderCount: Int?
 
     // Read from the bundle so the About row cannot drift from MARKETING_VERSION again
     private var appVersion: String {
@@ -21,6 +22,15 @@ struct SettingsView: View {
         }
     }
 
+    private var remindersDetail: String {
+        switch reminderCount {
+        case nil: return "Timers and reminders Nova is holding"
+        case 0:   return "Nothing pending"
+        case 1:   return "1 pending"
+        case let count?: return "\(count) pending"
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -32,6 +42,11 @@ struct SettingsView: View {
 
                         sectionLabel("SYSTEM")
                         systemStatusRow
+                        NavigationLink {
+                            SystemView()
+                        } label: {
+                            navRow(icon: "cpu", label: "DIAGNOSTICS", detail: "Services, uptime, temperature, latency")
+                        }
 
                         sectionLabel("MEMORY BANK")
                         NavigationLink {
@@ -39,6 +54,18 @@ struct SettingsView: View {
                                 .toolbar(.hidden, for: .navigationBar)
                         } label: {
                             navRow(icon: "brain", label: "MEMORIES", detail: memoriesDetail)
+                        }
+
+                        sectionLabel("PLANNING")
+                        NavigationLink {
+                            CalendarView()
+                        } label: {
+                            navRow(icon: "calendar", label: "YOUR WEEK", detail: "Every calendar, with edits on MILES")
+                        }
+                        NavigationLink {
+                            RemindersView()
+                        } label: {
+                            navRow(icon: "timer", label: "REMINDERS AND TIMERS", detail: remindersDetail)
                         }
 
                         sectionLabel("VOICE")
@@ -52,7 +79,10 @@ struct SettingsView: View {
                     }
                     .padding(.bottom, 32)
                     // onAppear rather than task, so the count updates after returning from Memory Bank
-                    .onAppear { Task { await loadPendingMemoryCount() } }
+                    .onAppear {
+                        Task { await loadPendingMemoryCount() }
+                        Task { await loadReminderCount() }
+                    }
                 }
             }
             .navigationBarHidden(true)
@@ -288,6 +318,13 @@ struct SettingsView: View {
             statusError = error.localizedDescription
         }
         statusIsLoading = false
+    }
+
+    private func loadReminderCount() async {
+        // Same as the memory count: a hint, silent if it fails
+        if let reminders = try? await APIService.fetchReminders() {
+            reminderCount = reminders.count
+        }
     }
 
     private func loadPendingMemoryCount() async {
