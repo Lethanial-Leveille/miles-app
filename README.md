@@ -22,7 +22,7 @@ Watch the full demo on LinkedIn: [linkedin.com/in/lethanial-lee-leveille](https:
 - **One conversation across devices**: chat opens on the last 20 messages, including what was said out loud in the room, marked with a speaker icon.
 - **Face ID login that survives token expiry**, with 60 minute JWTs renewed quietly in the background.
 - **On device speech input** via SFSpeechRecognizer with auto stop after 2 seconds of silence.
-- **Memory Bank**: review memories Nova inferred on her own (approve or reject), add new ones, and edit them with the full wording history kept.
+- **Memory Bank**: review memories Nova inferred on her own (approve or reject), add new ones, and edit them with the full wording history kept. Memories that read alike are offered as possible duplicates to merge, keep both, or keep one, and a pending memory close to a stored one shows it alongside.
 - **Your week**: seven days of Google Calendar, with events on Nova's own calendar editable in place.
 - **Reminders and timers** with live countdowns and swipe to cancel.
 - **Diagnostics** for the Pi: uptime, core temperature, response latency, and whether each backend service is running.
@@ -112,6 +112,8 @@ Nova talks to the Pi at `https://miles.lethanial.com` over HTTPS through a Cloud
 | `/memories`, `/memories/pending` | GET | Active memories and ones awaiting approval |
 | `/memories`, `/memories/{id}` | POST, PATCH, DELETE | Add, edit, remove |
 | `/memories/{id}/approve`, `/memories/{id}/history` | POST, GET | Approve, and wording history |
+| `/memories/similar`, `/memories/similar/dismiss` | GET, POST | Possible duplicates, and keeping both |
+| `/memories/merge/draft`, `/memories/merge` | POST | Draft a combined wording, and merge two into one |
 | `/calendar/events`, `/calendar/events/{id}` | GET, PATCH, DELETE | The week, and edits to Nova's events |
 | `/reminders`, `/reminders/{id}` | GET, DELETE | Open reminders and timers |
 | `/status`, `/status/details` | GET | Connection check and diagnostics |
@@ -148,7 +150,7 @@ Nova/
 │   ├── HistoryView.swift      # Grouped by day, search
 │   ├── SettingsView.swift     # Entry point for every screen below
 │   ├── SystemView.swift       # Diagnostics
-│   ├── MemoriesView.swift     # Memory Bank, approval queue
+│   ├── MemoriesView.swift     # Memory Bank, approval queue, possible duplicates
 │   ├── MemoryDetailView.swift # One memory and its wording history
 │   ├── CalendarView.swift     # Your week, event editor
 │   └── RemindersView.swift    # Reminders and live timers

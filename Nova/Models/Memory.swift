@@ -8,9 +8,11 @@ struct Memory: Decodable, Identifiable {
     let confidence: String?
     // Only the active listing sends this; pending rows leave it out
     let status: String?
+    // Pending rows only: the stored memory this one is close to, or nil when nothing is
+    let similarTo: MemoryRef?
 
     private enum CodingKeys: String, CodingKey {
-        case id, content, category, source, confidence, status
+        case id, content, category, source, confidence, status, similarTo
     }
 
     init(from decoder: Decoder) throws {
@@ -20,6 +22,8 @@ struct Memory: Decodable, Identifiable {
         category = try container.decodeIfPresent(String.self, forKey: .category)
         source   = try container.decodeIfPresent(String.self, forKey: .source)
         status   = try container.decodeIfPresent(String.self, forKey: .status)
+        // Only a hint, so a hint the app cannot read must not fail the whole pending list
+        similarTo = try? container.decodeIfPresent(MemoryRef.self, forKey: .similarTo)
 
         // The server writes words like "high" today, but the column is untyped, so an
         // older numeric row must not fail the decode of an entire page
@@ -58,4 +62,38 @@ struct MemoryVersion: Decodable, Identifiable {
 
     var createdDate: Date? { ServerDate.parse(createdAt) }
     var supersededDate: Date? { ServerDate.parse(supersededAt) }
+}
+
+// Just enough of a memory to show it beside another. The server also sends a similarity
+// score, left undecoded on purpose: it cannot tell a duplicate from two different facts
+// about the same person, so it is never shown as if it could.
+struct MemoryRef: Decodable, Identifiable {
+    let id: Int
+    let content: String
+}
+
+// Two stored memories that read alike, from GET /memories/similar. a is always the older.
+struct MemoryPair: Decodable, Identifiable {
+    let a: MemoryRef
+    let b: MemoryRef
+
+    var id: String { "\(a.id)-\(b.id)" }
+}
+
+struct MemoryPairs: Decodable {
+    let pairs: [MemoryPair]
+}
+
+// POST /memories/merge/draft. Stores nothing. drafted is false when the model could not be
+// reached, and content is then just the longer of the two.
+struct MergeDraft: Decodable {
+    let content: String
+    let drafted: Bool
+}
+
+// POST /memories/merge. The kept memory is superseded, so id is new; the other is deleted.
+struct MergeResult: Decodable {
+    let id: Int
+    let replaced: Int
+    let deleted: Int
 }

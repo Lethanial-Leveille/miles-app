@@ -83,6 +83,38 @@ enum APIService {
         return try await perform(request)
     }
 
+    // Pairs of stored memories that read alike, closest first. Pairs already judged
+    // "keep both" never come back.
+    static func fetchSimilarMemories() async throws -> [MemoryPair] {
+        let request = try await authenticatedRequest(path: "/memories/similar")
+        let answer: MemoryPairs = try await perform(request)
+        return answer.pairs
+    }
+
+    // Remembers that these two are different facts, so the pair is never offered again.
+    // Order does not matter.
+    static func dismissSimilar(aID: Int, bID: Int) async throws {
+        let request = try await jsonRequest(path: "/memories/similar/dismiss", method: "POST",
+                                            body: ["a_id": aID, "b_id": bID])
+        try await performNoContent(request)
+    }
+
+    // One sentence holding both, written by Claude on the Pi. Stores nothing, and takes a
+    // few seconds.
+    static func draftMerge(aID: Int, bID: Int) async throws -> MergeDraft {
+        let request = try await jsonRequest(path: "/memories/merge/draft", method: "POST",
+                                            body: ["a_id": aID, "b_id": bID])
+        return try await perform(request)
+    }
+
+    // keep is superseded by content, so its history keeps the old wording, and drop is
+    // deleted. All or nothing on the Pi. The result has a new id, so reload rather than patch.
+    static func mergeMemories(keepID: Int, dropID: Int, content: String) async throws -> MergeResult {
+        let request = try await jsonRequest(path: "/memories/merge", method: "POST",
+                                            body: ["keep_id": keepID, "drop_id": dropID, "content": content])
+        return try await perform(request)
+    }
+
     // Timers and reminders together, soonest first, told apart by kind
     static func fetchReminders() async throws -> [Reminder] {
         let request = try await authenticatedRequest(path: "/reminders")
