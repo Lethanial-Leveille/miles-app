@@ -13,6 +13,8 @@ final class SpeechService: ObservableObject {
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var silenceTimer: Timer?
+    // How long a pause ends the recording. The chat mic keeps 2 seconds; Talk Mode passes its own.
+    private var silenceWait: TimeInterval = 2.0
     // Held by listen() until the recording ends, whatever ended it
     private var finished: CheckedContinuation<String, Never>?
 
@@ -24,10 +26,11 @@ final class SpeechService: ObservableObject {
 
     // One whole utterance: starts recording, and returns what was heard once the silence stop
     // or a cancel ends it. nil when the microphone could not start at all, so a caller looping
-    // on this stops instead of spinning.
-    func listen() async -> String? {
+    // on this stops instead of spinning. names are words the recognizer should expect, like
+    // family names it would otherwise hear as ordinary words.
+    func listen(silence: TimeInterval, names: [String] = []) async -> String? {
         if isRecording { stopRecording() }
-        await beginRecording()
+        await beginRecording(silence: silence, names: names)
         guard isRecording else { return nil }
         return await withTaskCancellationHandler {
             await withCheckedContinuation { finished = $0 }
@@ -40,7 +43,7 @@ final class SpeechService: ObservableObject {
         if isRecording {
             stopRecording()
         } else {
-            await beginRecording()
+            await beginRecording(silence: 2.0, names: [])
         }
     }
 
@@ -63,7 +66,7 @@ final class SpeechService: ObservableObject {
 
     // MARK: Private
 
-    private func beginRecording() async {
+    private func beginRecording(silence: TimeInterval, names: [String]) async {
         guard await requestPermissions() else {
             permissionDenied = true
             return
@@ -83,6 +86,8 @@ final class SpeechService: ObservableObject {
             request.shouldReportPartialResults = true
             // On-device only — no audio leaves the phone
             request.requiresOnDeviceRecognition = true
+            request.contextualStrings = names
+            silenceWait = silence
 
             let inputNode = audioEngine.inputNode
             let format = inputNode.outputFormat(forBus: 0)
@@ -118,10 +123,10 @@ final class SpeechService: ObservableObject {
         }
     }
 
-    // Restart the 2-second silence countdown each time new speech arrives
+    // Restart the silence countdown each time new speech arrives
     private func resetSilenceTimer() {
         silenceTimer?.invalidate()
-        silenceTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+        silenceTimer = Timer.scheduledTimer(withTimeInterval: silenceWait, repeats: false) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor [self] in
                 self.stopRecording()
@@ -129,8 +134,9 @@ final class SpeechService: ObservableObject {
         }
     }
 
-    // Root mean square of the first channel, mapped from about -50 dB (a quiet room) up to 0
-    nonisolated private static func level(of buffer: AVAudioPCMBuffer) -> Float {
+    // Root mean square of the first channel, mapped from about -50 dB (a quiet room) up to 0.
+    // VoicePlayer meters Nova's voice with it too, so both waveforms move on one scale.
+    nonisolated static func level(of buffer: AVAudioPCMBuffer) -> Float {
         guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
         var sum: Float = 0
         for i in 0..<Int(buffer.frameLength) { sum += samples[i] * samples[i] }

@@ -19,27 +19,19 @@ struct TalkView: View {
             VStack(spacing: 0) {
                 header
 
-                Spacer()
-
                 TalkWaveform(phase: session.phase, level: { session.level })
+                    .padding(.top, 32)
                     .padding(.bottom, 40)
 
                 Text(statusLine)
                     .novaFont(13, weight: .bold, design: .monospaced)
                     .foregroundColor(Theme.accent)
                     .tracking(4)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
                     .animation(nil, value: statusLine)
 
-                Text(caption)
-                    .novaFont(17)
-                    .foregroundColor(session.phase == .speaking ? Theme.textPrimary : Theme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(5)
-                    .padding(.horizontal, 32)
-                    .padding(.top, 16)
-                    .frame(minHeight: 110, alignment: .top)
-
-                Spacer()
+                transcript
 
                 if let notice = session.notice {
                     Text(notice)
@@ -69,6 +61,41 @@ struct TalkView: View {
             UIApplication.shared.isIdleTimerDisabled = false
             session.end()
         }
+    }
+
+    // Everything said, whole, however long. It scrolls rather than cutting anything off, and
+    // follows his words as they come in. Her reply arrives whole and starts at the top, where
+    // she starts speaking.
+    private var transcript: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: 0).id(TranscriptEdge.top)
+                    Text(caption)
+                        .novaFont(17)
+                        .foregroundColor(session.phase == .speaking ? Theme.textPrimary : Theme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 16)
+                    Color.clear.frame(height: 0).id(TranscriptEdge.bottom)
+                }
+            }
+            .scrollIndicators(.hidden)
+            .frame(maxHeight: .infinity)
+            .onChange(of: session.phase) {
+                proxy.scrollTo(TranscriptEdge.top, anchor: .top)
+            }
+            .onChange(of: caption) {
+                guard session.phase != .speaking else { return }
+                proxy.scrollTo(TranscriptEdge.bottom, anchor: .bottom)
+            }
+        }
+    }
+
+    private enum TranscriptEdge {
+        case top, bottom
     }
 
     private var header: some View {

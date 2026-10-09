@@ -70,13 +70,15 @@ The backend has no refresh token, only access tokens that last an hour. So the a
 
 ```
 TalkSession loop
-   ├─ listen   SpeechService.listen()  →  one utterance, ended by 2s of silence or a tap
+   ├─ listen   SpeechService.listen()  →  one utterance, ended by 1.2s of silence or a tap
    ├─ send     ChatService.send(channel: .voice)  →  POST /chat/stream
-   ├─ speak    POST /speak with the finished reply  →  mp3  →  VoicePlayer
+   ├─ speak    POST /speak with the finished reply  →  mp3 stream  →  VoicePlayer
    └─ repeat until closed
 ```
 
 The `voice` channel asks Nova to write for the ear: no markdown, symbols spelled out. Every turn goes through the same `ChatService` as typing, so a spoken conversation is in the chat afterwards.
+
+VoicePlayer starts on the first chunk of the mp3 instead of waiting for the whole file: AudioFileStream finds the frames, AVAudioConverter decodes them, and an AVAudioPlayerNode plays each piece as it arrives. The recognizer is given the family's names, so it stops hearing them as other words. Each turn logs one `[Nova] Talk turn` line to the console with the time spent at every step, from the last words heard to her voice.
 
 ### App Structure
 
@@ -170,7 +172,8 @@ Nova/
 │   ├── ChatService.swift      # A chat turn, streamed or blocking
 │   ├── SpeechService.swift    # SFSpeechRecognizer, on device only
 │   ├── TalkSession.swift      # The Talk Mode loop
-│   └── VoicePlayer.swift      # Plays Nova's voice, awaitable
+│   ├── TalkTiming.swift       # Per turn latency line for the console
+│   └── VoicePlayer.swift      # Streams Nova's voice as it arrives, awaitable
 │
 ├── Models/                    # Codable structs for API responses
 │

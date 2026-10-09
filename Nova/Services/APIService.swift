@@ -31,8 +31,10 @@ enum APIService {
     // A chat turn blocks until every tool call finishes, which can outlast URLSession's
     // 60 second default
     private static let chatTimeout: TimeInterval = 180
-    // Synthesis runs about a second to first audio, and the route sends the file whole
+    // Synthesis runs about a second to first audio, then streams the rest
     private static let speakTimeout: TimeInterval = 60
+    // How much /speak audio to gather before handing it on: about 130 ms of 64kbps mp3
+    private static let speakChunkSize = 1024
 
     // MARK: Public endpoints
 
@@ -278,14 +280,40 @@ enum APIService {
     // model and pronunciation table as the room speaker, and synthesizes the whole reply in
     // one request because eleven_v3 voices each request separately: sentence by sentence she
     // would sound like a different speaker partway through. 413 over 2000 characters, 502
-    // when ElevenLabs fails.
-    static func speak(text: String) async throws -> Data {
+    // when ElevenLabs fails. The audio streams: the Pi fetches the first chunk before it
+    // answers, so a refusal is a real status code thrown here, and the mp3 is handed on in
+    // pieces as it arrives so she can start talking long before the file is complete.
+    static func speak(text: String) async throws -> AsyncThrowingStream<Data, Error> {
         var request = try await jsonRequest(path: "/speak", method: "POST", body: ["text": text])
         request.timeoutInterval = speakTimeout
         request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try checkStatus(response, data: data)
-        return data
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            var body = Data()
+            for try await byte in bytes { body.append(byte) }
+            try checkStatus(response, data: body)
+        }
+
+        return AsyncThrowingStream<Data, Error> { continuation in
+            let work = Task {
+                do {
+                    var chunk = Data()
+                    for try await byte in bytes {
+                        chunk.append(byte)
+                        if chunk.count >= speakChunkSize {
+                            continuation.yield(chunk)
+                            chunk = Data()
+                        }
+                    }
+                    if !chunk.isEmpty { continuation.yield(chunk) }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            // Cutting Nova off drops the rest of the download
+            continuation.onTermination = { _ in work.cancel() }
+        }
     }
 
     // MARK: Private helpers

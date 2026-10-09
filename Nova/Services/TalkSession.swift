@@ -27,6 +27,13 @@ final class TalkSession: ObservableObject {
     private var turns = 0
     private var subscriptions = Set<AnyCancellable>()
 
+    // The pause that ends his turn. The chat mic waits 2 seconds, which out loud is a long
+    // silence before anything happens; a tap still sends at once.
+    private let silenceWait: TimeInterval = 1.2
+    // Family names the recognizer otherwise hears as other words
+    private let names = ["Lethanial", "Maj", "Majelin", "Caiah", "Micaiah", "Lahna", "Mylahna",
+                         "Bree", "Mabryel", "Celo", "Marcelo", "Malique", "Azarieyah"]
+
     init(chat: ChatService) {
         self.chat = chat
         speech.$transcript.assign(to: &$heard)
@@ -75,7 +82,7 @@ final class TalkSession: ObservableObject {
     private func run() async {
         while !Task.isCancelled {
             phase = .listening
-            guard let words = await speech.listen() else {
+            guard let words = await speech.listen(silence: silenceWait, names: names) else {
                 notice = speech.permissionDenied
                     ? "Microphone or speech recognition is off for Nova. Turn it on in Settings."
                     : "The microphone would not start."
@@ -123,11 +130,12 @@ final class TalkSession: ObservableObject {
             do {
                 timing?.mark(.speakSent)
                 let audio = try await APIService.speak(text: reply)
-                timing?.mark(.firstAudio)
                 guard !Task.isCancelled else { return }
                 phase = .speaking
-                timing?.mark(.playbackStart)
-                try await voice.play(audio)
+                // She starts on the first chunk, while the rest of the mp3 is still arriving
+                try await voice.play(audio,
+                                     onFirstAudio: { [weak self] in self?.timing?.mark(.firstAudio) },
+                                     onStart: { [weak self] in self?.timing?.mark(.playbackStart) })
             } catch {
                 // The reply is already in the chat. Only her voice is missing.
                 notice = "Could not say it out loud. \(error.localizedDescription)"
