@@ -19,6 +19,8 @@ final class SpeechService: ObservableObject {
     // How loud the microphone is right now, 0 to 1. Not published: it changes dozens of times a
     // second, and the Talk Mode waveform reads it once per frame instead.
     private(set) var inputLevel: Float = 0
+    // When the recognizer last had something new, the nearest thing to when he stopped talking
+    private(set) var lastHeardAt: ContinuousClock.Instant?
 
     // One whole utterance: starts recording, and returns what was heard once the silence stop
     // or a cancel ends it. nil when the microphone could not start at all, so a caller looping
@@ -96,12 +98,14 @@ final class SpeechService: ObservableObject {
             try audioEngine.start()
             isRecording = true
             transcript = ""
+            lastHeardAt = nil
 
             recognitionTask = recognizer?.recognitionTask(with: request) { [weak self] result, error in
                 guard let self else { return }
                 Task { @MainActor [self] in
                     if let result {
                         self.transcript = result.bestTranscription.formattedString
+                        self.lastHeardAt = .now
                         self.resetSilenceTimer()
                     }
                     if error != nil || result?.isFinal == true {
