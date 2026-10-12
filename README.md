@@ -17,7 +17,7 @@ Watch the full demo on LinkedIn: [linkedin.com/in/lethanial-lee-leveille](https:
 ## Features
 
 - **Talk Mode**: a full screen spoken conversation. Nova listens, answers in the same ElevenLabs voice she uses in my room, then listens again. A six bar waveform follows my voice while she listens and hers while she speaks. Tap to send early or to cut her off.
-- **Streaming chat** over Server Sent Events. Replies appear as they are written, and while a tool runs the indicator says what she is doing ("Checking your calendar").
+- **Streaming chat** over Server Sent Events. Replies appear as they are written, and while a tool runs the indicator says what she is doing ("Checking your calendar"). Return sends; tap the conversation, swipe down on it, or use the keyboard button in the composer to put the keyboard away.
 - **Markdown replies** rendered by a parser written for this app: headings, nested lists, quotes, code blocks and tables.
 - **One conversation across devices**: chat opens on the last 20 messages, including what was said out loud in the room, marked with a speaker icon.
 - **Face ID login that survives token expiry**, with 60 minute JWTs renewed quietly in the background.

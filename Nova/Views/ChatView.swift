@@ -7,6 +7,7 @@ struct ChatView: View {
 
     @State private var inputText = ""
     @State private var talking = false
+    @FocusState private var typing: Bool
 
     var body: some View {
         ZStack {
@@ -37,6 +38,9 @@ struct ChatView: View {
                         .padding(.top, 12)
                     }
                     .scrollDismissesKeyboard(.interactively)
+                    // Return sends rather than closing the keyboard, so a tap on the conversation
+                    // is the quick way to put it away and get the tab bar back
+                    .onTapGesture { typing = false }
                     .onChange(of: service.messages.count) {
                         withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom") }
                     }
@@ -155,6 +159,22 @@ struct ChatView: View {
 
     private var inputBar: some View {
         HStack(spacing: 8) {
+            // Only while typing: puts the keyboard away without sending
+            if typing {
+                Button {
+                    typing = false
+                } label: {
+                    Image(systemName: "keyboard.chevron.compact.down")
+                        .novaFont(15, weight: .medium)
+                        .foregroundColor(Theme.textSecondary)
+                        .frame(width: 38, height: 38)
+                        .background(Theme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 2))
+                }
+                .accessibilityLabel("Hide keyboard")
+                .transition(.opacity)
+            }
+
             // Mic button — left of the text field
             Button {
                 Task { await speech.toggleRecording() }
@@ -171,6 +191,7 @@ struct ChatView: View {
 
             TextField("", text: $inputText, prompt: Text("Message Nova").foregroundColor(Theme.textSecondary), axis: .vertical)
                 .lineLimit(1...5)
+                .focused($typing)
                 .novaFont(15)
                 .foregroundColor(Theme.textPrimary)
                 .tint(Theme.accent)
@@ -208,6 +229,7 @@ struct ChatView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .animation(.easeOut(duration: 0.2), value: typing)
     }
 
     // MARK: Actions
