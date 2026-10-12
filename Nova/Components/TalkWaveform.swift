@@ -49,7 +49,8 @@ struct TalkWaveform: View {
             // A wave travelling left to right, the working state with no sound to follow
             let wave = (1 + CGFloat(sin(time * 4 - Double(i) * 0.7))) / 2
             fraction = 0.18 + 0.4 * wave
-        case .stopped:
+        case .waiting, .stopped:
+            // Resting bars. Waiting stays bright, so it reads as ready rather than ended.
             fraction = ratio * 0.25
         }
         return max(minHeight, maxHeight * min(fraction, 1))

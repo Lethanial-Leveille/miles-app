@@ -16,7 +16,7 @@ Watch the full demo on LinkedIn: [linkedin.com/in/lethanial-lee-leveille](https:
 
 ## Features
 
-- **Talk Mode**: a full screen spoken conversation. Nova listens, answers in the same ElevenLabs voice she uses in my room, then listens again. A six bar waveform follows my voice while she listens and hers while she speaks. Tap to send early or to cut her off.
+- **Talk Mode**: a full screen spoken conversation. Nova listens, answers in the same ElevenLabs voice she uses in my room, then waits for a tap before listening again. A six bar waveform follows my voice while she listens and hers while she speaks. Tap to talk, to send early, or to cut her off and answer.
 - **Streaming chat** over Server Sent Events. Replies appear as they are written, and while a tool runs the indicator says what she is doing ("Checking your calendar"). Return sends; tap the conversation, swipe down on it, or use the keyboard button in the composer to put the keyboard away.
 - **Markdown replies** rendered by a parser written for this app: headings, nested lists, quotes, code blocks and tables.
 - **One conversation across devices**: chat opens on the last 20 messages, including what was said out loud in the room, marked with a speaker icon.
@@ -73,6 +73,7 @@ TalkSession loop
    ├─ listen   SpeechService.listen()  →  one utterance, ended by 1.2s of silence or a tap
    ├─ send     ChatService.send(channel: .voice)  →  POST /chat/stream
    ├─ speak    POST /speak with the finished reply  →  mp3 stream  →  VoicePlayer
+   ├─ wait     for a tap, so a quiet room is never taken as the next turn
    └─ repeat until closed
 ```
 

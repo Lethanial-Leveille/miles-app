@@ -1,13 +1,14 @@
 import Foundation
 import Combine
 
-// Talk Mode: listen, send, hear Nova answer in her own voice, listen again, until it is ended.
+// Talk Mode: listen, send, hear Nova answer in her own voice, then wait for a tap before
+// listening again, so a room going quiet after her answer is never taken as his next turn.
 // Every turn goes through the same ChatService as typing, so the conversation is in the chat
 // afterwards and a calendar question asked out loud can be answered by typing, or the reverse.
 final class TalkSession: ObservableObject {
 
     enum Phase {
-        case starting, listening, thinking, speaking, stopped
+        case starting, listening, thinking, speaking, waiting, stopped
     }
 
     @Published private(set) var phase: Phase = .starting
@@ -22,6 +23,10 @@ final class TalkSession: ObservableObject {
     private let speech = SpeechService()
     private let voice = VoicePlayer()
     private var loop: Task<Void, Never>?
+    // Held while waiting for the tap that starts his next turn
+    private var tapped: CheckedContinuation<Void, Never>?
+    // Set by a tap that cuts Nova off: he tapped to talk, so the next turn starts at once
+    private var cutIn = false
     // The turn being timed, logged as one line when it ends
     private var timing: TalkTiming?
     private var turns = 0
@@ -66,21 +71,48 @@ final class TalkSession: ObservableObject {
         loop = nil
         speech.stopRecording()
         voice.stop()
+        releaseTap()
         phase = .stopped
     }
 
-    // One tap does whatever moves the conversation along: send what was said without waiting
-    // out the silence, or cut Nova off and go back to listening
+    // One tap does whatever moves the conversation along: start his turn, send what was said
+    // without waiting out the silence, or cut Nova off and listen
     func tap() {
         switch phase {
+        case .waiting:   releaseTap()
         case .listening: speech.stopRecording()
-        case .speaking:  voice.stop()
+        case .speaking:
+            cutIn = true
+            voice.stop()
         default:         break
         }
     }
 
+    private func nextTap() async {
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { tapped = $0 }
+        } onCancel: {
+            Task { @MainActor in self.releaseTap() }
+        }
+    }
+
+    private func releaseTap() {
+        let waiting = tapped
+        tapped = nil
+        waiting?.resume()
+    }
+
     private func run() async {
+        // Opening Talk Mode is the first tap
+        var ready = true
         while !Task.isCancelled {
+            if !ready {
+                phase = .waiting
+                await nextTap()
+                guard !Task.isCancelled else { return }
+            }
+            ready = false
+
             phase = .listening
             guard let words = await speech.listen(silence: silenceWait, names: names) else {
                 notice = speech.permissionDenied
@@ -93,11 +125,9 @@ final class TalkSession: ObservableObject {
 
             let heardAt = speech.lastHeardAt
             let message = words.trimmingCharacters(in: .whitespacesAndNewlines)
-            if message.isEmpty {
-                // A recognizer that fails at once would otherwise spin this loop flat out
-                try? await Task.sleep(for: .milliseconds(300))
-                continue
-            }
+            // Nothing heard waits for a tap like any other turn, which also keeps a recognizer
+            // that fails at once from spinning this loop
+            if message.isEmpty { continue }
 
             turns += 1
             timing = TalkTiming()
@@ -127,6 +157,7 @@ final class TalkSession: ObservableObject {
             }
 
             said = reply
+            cutIn = false
             do {
                 timing?.mark(.speakSent)
                 let audio = try await APIService.speak(text: reply)
@@ -140,6 +171,7 @@ final class TalkSession: ObservableObject {
                 // The reply is already in the chat. Only her voice is missing.
                 notice = "Could not say it out loud. \(error.localizedDescription)"
             }
+            ready = cutIn
         }
     }
 

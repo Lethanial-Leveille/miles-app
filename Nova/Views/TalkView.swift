@@ -1,7 +1,7 @@
 import SwiftUI
 
-// Full screen conversation by voice. The whole screen is one button: tap to send what you said
-// without waiting out the silence, or to cut Nova off while she speaks.
+// Full screen conversation by voice. The whole screen is one button: tap to start talking, to
+// send what you said without waiting out the silence, or to cut Nova off while she speaks.
 struct TalkView: View {
     @ObservedObject var chat: ChatService
     @StateObject private var session: TalkSession
@@ -129,6 +129,7 @@ struct TalkView: View {
         case .listening: return "LISTENING"
         case .thinking:  return chat.stage?.uppercased() ?? "THINKING"
         case .speaking:  return "NOVA"
+        case .waiting:   return "READY"
         case .stopped:   return "ENDED"
         }
     }
@@ -138,6 +139,8 @@ struct TalkView: View {
         case .listening: return session.heard.isEmpty ? "Go ahead, Lethanial." : session.heard
         case .thinking:  return session.heard
         case .speaking:  return session.said
+        // Her last answer stays readable until he taps to talk again
+        case .waiting:   return session.said
         default:         return ""
         }
     }
@@ -146,6 +149,7 @@ struct TalkView: View {
         switch session.phase {
         case .listening: return "TAP TO SEND"
         case .speaking:  return "TAP TO CUT IN"
+        case .waiting:   return "TAP TO TALK"
         default:         return " "
         }
     }
