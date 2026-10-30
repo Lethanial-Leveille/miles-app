@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct NovaApp: App {
+    // Push tokens arrive through UIKit callbacks that SwiftUI cannot receive on its own
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var authManager = AuthManager()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -21,6 +23,11 @@ struct NovaApp: App {
             .dynamicTypeSize(...DynamicTypeSize.accessibility3)
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { authManager.validateSession() }
+            }
+            // Runs at launch and again at each login, so a push token is always registered
+            // for whoever is signed in
+            .task(id: authManager.isAuthenticated) {
+                if authManager.isAuthenticated { await PushService.enable() }
             }
         }
     }

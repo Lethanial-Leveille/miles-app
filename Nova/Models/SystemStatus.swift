@@ -20,3 +20,8 @@ struct SystemDetails: Decodable {
     // Service name to running. A null value means systemctl itself could not be asked.
     let services: [String: Bool?]
 }
+
+// POST /push/test: how many phones Apple accepted the test notification for
+struct PushTestResult: Decodable {
+    let sent: Int
+}

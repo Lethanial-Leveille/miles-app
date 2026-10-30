@@ -129,6 +129,29 @@ enum APIService {
         try await performNoContent(request)
     }
 
+    // The Pi sends this phone its reminder and timer pushes once it knows the token
+    static func registerPushDevice(token: String, environment: String, deviceName: String) async throws {
+        let request = try await jsonRequest(
+            path: "/push/register", method: "POST",
+            body: ["token": token, "environment": environment, "device_name": deviceName])
+        try await performNoContent(request)
+    }
+
+    static func unregisterPushDevice(token: String) async throws {
+        var request = try await jsonRequest(path: "/push/unregister", method: "POST", body: ["token": token])
+        // Logging out waits on this, and an offline phone should not wait a minute to sign out
+        request.timeoutInterval = 5
+        try await performNoContent(request)
+    }
+
+    // The Pi answers 503 with what it is missing, or 502 when Apple refuses, and either sentence
+    // is what the caller shows
+    static func sendTestPush() async throws -> Int {
+        let request = try await jsonRequest(path: "/push/test", method: "POST", body: [:])
+        let result: PushTestResult = try await perform(request)
+        return result.sent
+    }
+
     // From the start of today, so this morning's events still show
     static func fetchCalendar(days: Int = 7) async throws -> CalendarWeek {
         let request = try await authenticatedRequest(path: "/calendar/events?days=\(days)")
