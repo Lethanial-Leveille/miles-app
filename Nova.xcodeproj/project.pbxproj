@@ -254,6 +254,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Nova uses Face ID to protect your session";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Nova reads your steps, weight and workouts from Apple Health so she can answer questions about them";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Nova uses the microphone to hear your voice messages";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Nova uses speech recognition to transcribe your voice messages";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -302,6 +303,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Nova uses Face ID to protect your session";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Nova reads your steps, weight and workouts from Apple Health so she can answer questions about them";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Nova uses the microphone to hear your voice messages";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Nova uses speech recognition to transcribe your voice messages";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

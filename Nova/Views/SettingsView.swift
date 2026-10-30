@@ -10,6 +10,8 @@ struct SettingsView: View {
     @State private var reminderCount: Int?
     @State private var testPushDetail = "Check that the Pi can reach this phone"
     @State private var testPushIsSending = false
+    @State private var healthDetail = HealthService.statusLine()
+    @State private var healthIsSyncing = false
 
     // Read from the bundle so the About row cannot drift from MARKETING_VERSION again
     private var appVersion: String {
@@ -72,6 +74,9 @@ struct SettingsView: View {
 
                         sectionLabel("NOTIFICATIONS")
                         testPushRow
+
+                        sectionLabel("HEALTH")
+                        healthRow
 
                         sectionLabel("VOICE")
                         autoSendRow
@@ -324,6 +329,43 @@ struct SettingsView: View {
         .disabled(testPushIsSending)
     }
 
+    // MARK: Apple Health
+
+    private var healthRow: some View {
+        Button {
+            Task { await syncHealth() }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "heart.text.square")
+                    .novaFont(16)
+                    .foregroundColor(Theme.accent)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("APPLE HEALTH")
+                        .novaFont(12, weight: .medium, design: .monospaced)
+                        .foregroundColor(Theme.textPrimary)
+                        .tracking(1)
+                    Text(healthDetail)
+                        .novaFont(10, design: .monospaced)
+                        .foregroundColor(Theme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(Theme.surface)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Theme.accent.opacity(0.08))
+            }
+        }
+        .disabled(healthIsSyncing || !HealthService.isAvailable)
+    }
+
     // MARK: Logout
 
     private var logoutRow: some View {
@@ -364,6 +406,23 @@ struct SettingsView: View {
             statusError = error.localizedDescription
         }
         statusIsLoading = false
+    }
+
+    private func syncHealth() async {
+        healthIsSyncing = true
+        healthDetail = "SYNCING..."
+        defer { healthIsSyncing = false }
+        do {
+            // The first tap asks for access; later taps just sync
+            if HealthService.isEnabled {
+                try await HealthService.sync()
+            } else {
+                try await HealthService.connect()
+            }
+            healthDetail = HealthService.statusLine()
+        } catch {
+            healthDetail = error.localizedDescription
+        }
     }
 
     private func sendTestPush() async {

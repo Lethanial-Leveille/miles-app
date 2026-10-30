@@ -22,12 +22,20 @@ struct NovaApp: App {
             // Icon buttons have fixed frames; past this size their symbols would spill out
             .dynamicTypeSize(...DynamicTypeSize.accessibility3)
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { authManager.validateSession() }
+                if phase == .active {
+                    authManager.validateSession()
+                    if authManager.isAuthenticated {
+                        Task { await HealthService.syncIfDue() }
+                    }
+                }
             }
             // Runs at launch and again at each login, so a push token is always registered
             // for whoever is signed in
             .task(id: authManager.isAuthenticated) {
-                if authManager.isAuthenticated { await PushService.enable() }
+                if authManager.isAuthenticated {
+                    await PushService.enable()
+                    await HealthService.syncIfDue()
+                }
             }
         }
     }

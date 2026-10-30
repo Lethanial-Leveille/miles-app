@@ -25,6 +25,7 @@ Watch the full demo on LinkedIn: [linkedin.com/in/lethanial-lee-leveille](https:
 - **Memory Bank**: review memories Nova inferred on her own (approve or reject), add new ones, and edit them with the full wording history kept. Memories that read alike are offered as possible duplicates to merge, keep both, or keep one, and a pending memory close to a stored one shows it alongside.
 - **Your week**: seven days of Google Calendar, with events on Nova's own calendar editable in place.
 - **Reminders and timers** with live countdowns and swipe to cancel.
+- **Apple Health sync**: when the app opens it reads the last two weeks of steps, active calories, body weight and workouts from Health and sends a copy to the Pi, so I can ask Nova in my room how far I ran or what I weigh. Read only; the app never writes to Health.
 - **Push notifications**: a reminder or timer that comes due reaches the phone through Apple's push service, not only the speaker in my room. Settings has a button that sends a test, so the whole chain can be checked in seconds.
 - **Diagnostics** for the Pi: uptime, core temperature, response latency, and whether each backend service is running.
 - **Conversation history** grouped by day, with search and pull to refresh.
@@ -98,6 +99,7 @@ NovaApp
                         ├─ CalendarView (your week)
                         ├─ RemindersView
                         ├─ Notifications (send a test push)
+                        ├─ Apple Health (connect and sync)
                         ├─ Voice settings (auto send toggle)
                         ├─ About
                         └─ Logout
@@ -121,6 +123,7 @@ Nova talks to the Pi at `https://miles.lethanial.com` over HTTPS through a Cloud
 | `/memories/merge/draft`, `/memories/merge` | POST | Draft a combined wording, and merge two into one |
 | `/calendar/events`, `/calendar/events/{id}` | GET, PATCH, DELETE | The week, and edits to Nova's events |
 | `/reminders`, `/reminders/{id}` | GET, DELETE | Open reminders and timers |
+| `/health/sync` | POST | The last two weeks of Health data, replacing the Pi's copy of each day |
 | `/push/register`, `/push/unregister`, `/push/test` | POST | Tell the Pi this phone's push token, forget it at logout, and send a test |
 | `/status`, `/status/details` | GET | Connection check and diagnostics |
 
@@ -175,6 +178,7 @@ Nova.entitlements              # Capabilities the app is signed with (push)
 │   ├── AuthManager.swift      # ObservableObject, owns isAuthenticated
 │   ├── AuthService.swift      # Login, renewal, Face ID
 │   ├── ChatService.swift      # A chat turn, streamed or blocking
+│   ├── HealthService.swift    # Reads HealthKit and sends a copy to the Pi
 │   ├── PushService.swift      # Push permission and token, and the app delegate APNs needs
 │   ├── SpeechService.swift    # SFSpeechRecognizer, on device only
 │   ├── TalkSession.swift      # The Talk Mode loop

@@ -152,6 +152,18 @@ enum APIService {
         return result.sent
     }
 
+    // Sent whole each time, since the Pi replaces every day it is given
+    static func syncHealth(_ payload: HealthSyncPayload) async throws {
+        var request = try await authenticatedRequest(path: "/health/sync")
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        encoder.dateEncodingStrategy = .iso8601
+        request.httpBody = try encoder.encode(payload)
+        try await performNoContent(request)
+    }
+
     // From the start of today, so this morning's events still show
     static func fetchCalendar(days: Int = 7) async throws -> CalendarWeek {
         let request = try await authenticatedRequest(path: "/calendar/events?days=\(days)")
