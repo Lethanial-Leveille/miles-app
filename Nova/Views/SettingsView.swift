@@ -8,6 +8,8 @@ struct SettingsView: View {
     @State private var statusError: String?
     @State private var pendingMemoryCount = 0
     @State private var reminderCount: Int?
+    @State private var testPushDetail = "Check that the Pi can reach this phone"
+    @State private var testPushIsSending = false
 
     // Read from the bundle so the About row cannot drift from MARKETING_VERSION again
     private var appVersion: String {
@@ -67,6 +69,9 @@ struct SettingsView: View {
                         } label: {
                             navRow(icon: "timer", label: "REMINDERS AND TIMERS", detail: remindersDetail)
                         }
+
+                        sectionLabel("NOTIFICATIONS")
+                        testPushRow
 
                         sectionLabel("VOICE")
                         autoSendRow
@@ -282,11 +287,52 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: Test notification
+
+    private var testPushRow: some View {
+        Button {
+            Task { await sendTestPush() }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "bell.badge")
+                    .novaFont(16)
+                    .foregroundColor(Theme.accent)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("SEND TEST NOTIFICATION")
+                        .novaFont(12, weight: .medium, design: .monospaced)
+                        .foregroundColor(Theme.textPrimary)
+                        .tracking(1)
+                    Text(testPushDetail)
+                        .novaFont(10, design: .monospaced)
+                        .foregroundColor(Theme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(Theme.surface)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Theme.accent.opacity(0.08))
+            }
+        }
+        .disabled(testPushIsSending)
+    }
+
     // MARK: Logout
 
     private var logoutRow: some View {
         Button {
-            authManager.logout()
+            // Unregister first: it needs the login that logout is about to remove
+            Task {
+                await PushService.unregister()
+                authManager.logout()
+            }
         } label: {
             HStack(spacing: 14) {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
@@ -318,6 +364,23 @@ struct SettingsView: View {
             statusError = error.localizedDescription
         }
         statusIsLoading = false
+    }
+
+    private func sendTestPush() async {
+        testPushIsSending = true
+        testPushDetail = "SENDING..."
+        defer { testPushIsSending = false }
+
+        if await PushService.permissionDenied() {
+            testPushDetail = "Notifications are off for Nova. Turn them on in iOS Settings."
+            return
+        }
+        do {
+            let sent = try await PushService.sendTest()
+            testPushDetail = "Sent to \(sent) \(sent == 1 ? "phone" : "phones"). It should arrive in a few seconds."
+        } catch {
+            testPushDetail = error.localizedDescription
+        }
     }
 
     private func loadReminderCount() async {

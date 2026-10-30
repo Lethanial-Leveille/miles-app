@@ -25,6 +25,7 @@ Watch the full demo on LinkedIn: [linkedin.com/in/lethanial-lee-leveille](https:
 - **Memory Bank**: review memories Nova inferred on her own (approve or reject), add new ones, and edit them with the full wording history kept. Memories that read alike are offered as possible duplicates to merge, keep both, or keep one, and a pending memory close to a stored one shows it alongside.
 - **Your week**: seven days of Google Calendar, with events on Nova's own calendar editable in place.
 - **Reminders and timers** with live countdowns and swipe to cancel.
+- **Push notifications**: a reminder or timer that comes due reaches the phone through Apple's push service, not only the speaker in my room. Settings has a button that sends a test, so the whole chain can be checked in seconds.
 - **Diagnostics** for the Pi: uptime, core temperature, response latency, and whether each backend service is running.
 - **Conversation history** grouped by day, with search and pull to refresh.
 - **Dynamic Type** throughout, and a custom design system in electric blue, off white, and black.
@@ -96,6 +97,7 @@ NovaApp
                         ├─ MemoriesView → MemoryDetailView
                         ├─ CalendarView (your week)
                         ├─ RemindersView
+                        ├─ Notifications (send a test push)
                         ├─ Voice settings (auto send toggle)
                         ├─ About
                         └─ Logout
@@ -119,6 +121,7 @@ Nova talks to the Pi at `https://miles.lethanial.com` over HTTPS through a Cloud
 | `/memories/merge/draft`, `/memories/merge` | POST | Draft a combined wording, and merge two into one |
 | `/calendar/events`, `/calendar/events/{id}` | GET, PATCH, DELETE | The week, and edits to Nova's events |
 | `/reminders`, `/reminders/{id}` | GET, DELETE | Open reminders and timers |
+| `/push/register`, `/push/unregister`, `/push/test` | POST | Tell the Pi this phone's push token, forget it at logout, and send a test |
 | `/status`, `/status/details` | GET | Connection check and diagnostics |
 
 ---
@@ -144,6 +147,7 @@ The app icon is a custom voice waveform mark (six electric blue bars on pure bla
 ```
 Nova/
 ├── NovaApp.swift              # App entry, auth state routing
+Nova.entitlements              # Capabilities the app is signed with (push)
 │
 ├── Views/
 │   ├── LoginView.swift        # Animated waveform, Face ID, password
@@ -171,6 +175,7 @@ Nova/
 │   ├── AuthManager.swift      # ObservableObject, owns isAuthenticated
 │   ├── AuthService.swift      # Login, renewal, Face ID
 │   ├── ChatService.swift      # A chat turn, streamed or blocking
+│   ├── PushService.swift      # Push permission and token, and the app delegate APNs needs
 │   ├── SpeechService.swift    # SFSpeechRecognizer, on device only
 │   ├── TalkSession.swift      # The Talk Mode loop
 │   ├── TalkTiming.swift       # Per turn latency line for the console
