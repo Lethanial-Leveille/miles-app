@@ -27,7 +27,7 @@ struct MemoriesView: View {
 
                 Rectangle()
                     .frame(height: 1)
-                    .foregroundColor(Theme.accent.opacity(0.15))
+                    .foregroundColor(Theme.textSecondary.opacity(0.18))
 
                 if let actionError {
                     Text(actionError)
@@ -121,7 +121,7 @@ struct MemoriesView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 2)
+                    Capsule()
                         .stroke(Theme.accent.opacity(0.5), lineWidth: 1)
                 )
         }
@@ -154,8 +154,8 @@ struct MemoriesView: View {
                                 )
                             }
                         }
-                        .listRowBackground(Theme.surface)
-                        .listRowSeparatorTint(Theme.accent.opacity(0.1))
+                        .listRowBackground(Theme.background)
+                        .listRowSeparatorTint(Theme.textSecondary.opacity(0.14))
                         // Nova's guess is often almost right; fixing the wording is quicker than
                         // rejecting it and adding a new one
                         .swipeActions(edge: .leading) {
@@ -185,8 +185,8 @@ struct MemoriesView: View {
                             onKeepBoth: { keepBoth(pair) },
                             onKeepOne: { kept in keepOne(kept, of: pair) }
                         )
-                        .listRowBackground(Theme.surface)
-                        .listRowSeparatorTint(Theme.accent.opacity(0.1))
+                        .listRowBackground(Theme.background)
+                        .listRowSeparatorTint(Theme.textSecondary.opacity(0.14))
                     }
                 } header: {
                     sectionHeader("POSSIBLE DUPLICATES", count: pairs.count)
@@ -200,8 +200,8 @@ struct MemoriesView: View {
                     } label: {
                         MemoryRow(memory: memory)
                     }
-                    .listRowBackground(Theme.surface)
-                    .listRowSeparatorTint(Theme.accent.opacity(0.1))
+                    .listRowBackground(Theme.background)
+                    .listRowSeparatorTint(Theme.textSecondary.opacity(0.14))
                     .onAppear {
                         if memory.id == memories.last?.id {
                             Task { await loadMore() }
@@ -424,7 +424,7 @@ private struct PendingRow: View {
                     .foregroundColor(Theme.textSecondary)
                     .frame(width: 34, height: 34)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 2)
+                        Circle()
                             .stroke(Theme.textSecondary.opacity(0.5), lineWidth: 1)
                     )
             }
@@ -437,7 +437,7 @@ private struct PendingRow: View {
                     .foregroundColor(Theme.background)
                     .frame(width: 34, height: 34)
                     .background(Theme.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                    .clipShape(Circle())
                     .shadow(color: Theme.accentGlow, radius: 6)
             }
             .buttonStyle(.borderless)
@@ -558,7 +558,7 @@ private struct MemoryQuote: View {
                 .foregroundColor(Theme.accent.opacity(highlighted ? 1 : 0.4))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 2)
+            RoundedRectangle(cornerRadius: 14)
                 .stroke(Theme.accent.opacity(highlighted ? 0.6 : 0), lineWidth: 1)
         )
     }
@@ -583,7 +583,7 @@ private struct CardButton: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 9)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 2)
+                    Capsule()
                         .stroke((quiet ? Theme.textSecondary : Theme.accent).opacity(0.5), lineWidth: 1)
                 )
         }

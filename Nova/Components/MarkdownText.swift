@@ -54,8 +54,8 @@ struct MarkdownText: View {
             }
             .background(Theme.background)
             .overlay(
-                RoundedRectangle(cornerRadius: 2)
-                    .stroke(Theme.accent.opacity(0.15), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Theme.textSecondary.opacity(0.25), lineWidth: 1)
             )
 
         case .rule:

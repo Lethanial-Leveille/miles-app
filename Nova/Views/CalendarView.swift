@@ -165,9 +165,8 @@ private struct EventRow: View {
             .padding(.trailing, 20)
             .padding(.vertical, 10)
             .padding(.leading, 20)
-            .background(Theme.surface)
             .overlay(alignment: .bottom) {
-                Rectangle().frame(height: 1).foregroundColor(Theme.accent.opacity(0.08))
+                Rectangle().frame(height: 1).foregroundColor(Theme.textSecondary.opacity(0.14))
             }
         }
         .buttonStyle(.plain)
@@ -262,9 +261,12 @@ private struct EventEditor: View {
                         .novaFont(15)
                         .foregroundColor(Theme.textPrimary)
                         .tint(Theme.accent)
-                        .padding(12)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                         .background(Theme.surface)
-                        .overlay(RoundedRectangle(cornerRadius: 2).stroke(Theme.accent.opacity(0.3), lineWidth: 1))
+                        // Clipped first, or the fill's square corners show past the pill
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Theme.textSecondary.opacity(0.25), lineWidth: 1))
 
                     if event.allDay {
                         note("An all day event can only have its title changed.")
@@ -304,7 +306,7 @@ private struct EventEditor: View {
                             .foregroundColor(Theme.textPrimary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .overlay(RoundedRectangle(cornerRadius: 2).stroke(Theme.textSecondary.opacity(0.5), lineWidth: 1))
+                            .overlay(Capsule().stroke(Theme.textSecondary.opacity(0.5), lineWidth: 1))
                     }
                     .disabled(isWorking)
                     .padding(.top, 16)
