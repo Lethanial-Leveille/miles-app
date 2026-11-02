@@ -20,12 +20,14 @@ struct TalkView: View {
                 header
 
                 TalkWaveform(phase: session.phase, level: { session.level })
-                    .padding(.top, 32)
-                    .padding(.bottom, 40)
+                    .padding(.top, 24)
+                    .padding(.bottom, 28)
 
                 Text(statusLine)
                     .novaFont(13, weight: .bold, design: .monospaced)
-                    .foregroundColor(Theme.accent)
+                    // The word takes the same colour as the rings, so both say one thing
+                    .foregroundColor(session.phase.color)
+                    .shadow(color: session.phase.color.opacity(0.5), radius: 6)
                     .tracking(4)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
@@ -111,11 +113,11 @@ struct TalkView: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .novaFont(15, weight: .medium)
+                    .novaFont(13, weight: .medium)
                     .foregroundColor(Theme.textSecondary)
                     .frame(width: 38, height: 38)
-                    .background(Theme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                    // A thin ring rather than a box: the whole screen is drawn in circles
+                    .overlay(Circle().stroke(Theme.textSecondary.opacity(0.4), lineWidth: 1))
             }
             .accessibilityLabel("End Talk Mode")
         }
