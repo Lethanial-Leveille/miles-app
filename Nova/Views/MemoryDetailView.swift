@@ -43,7 +43,6 @@ struct MemoryDetailView: View {
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(20)
-                            .background(Theme.surface)
                             .overlay(alignment: .leading) {
                                 Rectangle().frame(width: 2).foregroundColor(Theme.accent)
                             }
@@ -122,9 +121,8 @@ struct MemoryDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(Theme.surface)
         .overlay(alignment: .bottom) {
-            Rectangle().frame(height: 1).foregroundColor(Theme.accent.opacity(0.08))
+            Rectangle().frame(height: 1).foregroundColor(Theme.textSecondary.opacity(0.14))
         }
     }
 

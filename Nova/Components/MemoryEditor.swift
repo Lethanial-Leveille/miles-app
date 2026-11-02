@@ -77,8 +77,10 @@ struct MemoryEditor: View {
                     .padding(10)
                     .frame(minHeight: 140, maxHeight: 260)
                     .background(Theme.surface)
+                    // Rounded, not a pill: it grows tall, and a pill stretched tall looks wrong
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 2)
+                        RoundedRectangle(cornerRadius: 14)
                             .stroke(Theme.accent.opacity(focused ? 0.6 : 0.3), lineWidth: 1)
                     )
                     .focused($focused)

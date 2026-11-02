@@ -32,7 +32,7 @@ struct ScreenHeader<Trailing: View>: View {
 
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Theme.accent.opacity(0.15))
+                .foregroundColor(Theme.textSecondary.opacity(0.18))
         }
     }
 }

@@ -86,11 +86,12 @@ struct LoginView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
                             .background(Theme.surface)
+                            // Clipped first, or the fill's square corners show past the pill
+                            .clipShape(Capsule())
                             .overlay(
-                                RoundedRectangle(cornerRadius: 2)
+                                Capsule()
                                     .stroke(Theme.accent.opacity(0.4), lineWidth: 1)
                             )
-                            .overlay(HUDCornerBrackets())
                             .disabled(isLoading)
 
                         Button(action: attemptPasswordLogin) {
@@ -187,35 +188,15 @@ private struct WaveformMark: View {
                     )
             }
         }
+        // The same rings as Talk Mode, still: the first thing you see is the shape of the app
+        .frame(width: 150, height: 150)
+        .overlay(Circle().stroke(Theme.accent.opacity(0.18), lineWidth: 1))
+        .overlay(
+            Circle()
+                .inset(by: 14)
+                .stroke(Theme.accent.opacity(0.34), style: StrokeStyle(lineWidth: 1, dash: [1, 6]))
+        )
         .onAppear { isAnimating = true }
-    }
-}
-
-// MARK: HUD corner brackets on the password field
-private struct HUDCornerBrackets: View {
-    private let size: CGFloat = 10
-    private let thickness: CGFloat = 1.5
-
-    var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
-            ZStack {
-                bracketPath(corner: .zero, xDir: 1, yDir: 1)
-                bracketPath(corner: CGPoint(x: w, y: 0), xDir: -1, yDir: 1)
-                bracketPath(corner: CGPoint(x: 0, y: h), xDir: 1, yDir: -1)
-                bracketPath(corner: CGPoint(x: w, y: h), xDir: -1, yDir: -1)
-            }
-        }
-    }
-
-    private func bracketPath(corner: CGPoint, xDir: CGFloat, yDir: CGFloat) -> some View {
-        Path { path in
-            path.move(to: CGPoint(x: corner.x + xDir * size, y: corner.y))
-            path.addLine(to: corner)
-            path.addLine(to: CGPoint(x: corner.x, y: corner.y + yDir * size))
-        }
-        .stroke(Theme.accent.opacity(0.6), lineWidth: thickness)
     }
 }
 

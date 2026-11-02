@@ -106,7 +106,6 @@ struct SystemView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
-        .background(Theme.surface)
         .accessibilityElement(children: .combine)
     }
 
@@ -125,7 +124,6 @@ struct SystemView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(Theme.surface)
         .accessibilityElement(children: .combine)
     }
 

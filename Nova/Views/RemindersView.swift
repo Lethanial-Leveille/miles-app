@@ -79,8 +79,8 @@ struct RemindersView: View {
             Section {
                 ForEach(rows) { reminder in
                     ReminderRow(reminder: reminder)
-                        .listRowBackground(Theme.surface)
-                        .listRowSeparatorTint(Theme.accent.opacity(0.1))
+                        .listRowBackground(Theme.background)
+                        .listRowSeparatorTint(Theme.textSecondary.opacity(0.14))
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button {
                                 cancel(reminder)
