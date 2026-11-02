@@ -16,9 +16,7 @@ struct ChatView: View {
             VStack(spacing: 0) {
                 header
 
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Theme.accent.opacity(0.15))
+                divider
 
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -71,9 +69,7 @@ struct ChatView: View {
                         .padding(.vertical, 6)
                 }
 
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Theme.accent.opacity(0.15))
+                divider
 
                 inputBar
             }
@@ -100,7 +96,22 @@ struct ChatView: View {
 
     // MARK: Header
 
-    private var isOnline: Bool { service.connection == .online }
+    // The connection is a state like any other, so it takes that state's colour: blue ready,
+    // purple while checking, red when the Pi cannot be reached
+    private var connectionColor: Color {
+        switch service.connection {
+        case .checking: return Theme.thinking
+        case .online:   return Theme.listening
+        case .offline:  return Theme.alert
+        }
+    }
+
+    // Neutral, because every colour in the app now means something
+    private var divider: some View {
+        Rectangle()
+            .frame(height: 1)
+            .foregroundColor(Theme.textSecondary.opacity(0.18))
+    }
 
     private var connectionLabel: String {
         switch service.connection {
@@ -112,10 +123,7 @@ struct ChatView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Circle()
-                .frame(width: 8, height: 8)
-                .foregroundColor(isOnline ? Theme.accent : Theme.textSecondary)
-                .shadow(color: isOnline ? Theme.accentGlow : .clear, radius: 4)
+            RingNode(color: connectionColor)
 
             Text("NOVA")
                 .novaFont(14, weight: .bold, design: .monospaced)
@@ -127,7 +135,7 @@ struct ChatView: View {
             } label: {
                 Text(connectionLabel)
                     .novaFont(10, design: .monospaced)
-                    .foregroundColor(isOnline ? Theme.accent : Theme.textSecondary)
+                    .foregroundColor(connectionColor)
                     .tracking(2)
             }
             .disabled(service.connection != .offline)
@@ -140,8 +148,10 @@ struct ChatView: View {
                 talking = true
             } label: {
                 Image(systemName: "waveform")
-                    .novaFont(16, weight: .medium)
+                    .novaFont(15, weight: .medium)
                     .foregroundColor(Theme.accent)
+                    .frame(width: 38, height: 38)
+                    .overlay(Circle().stroke(Theme.accent.opacity(0.5), lineWidth: 1))
                     .shadow(color: Theme.accentGlow, radius: 6)
             }
             .disabled(service.isResponding)
@@ -165,11 +175,10 @@ struct ChatView: View {
                     typing = false
                 } label: {
                     Image(systemName: "keyboard.chevron.compact.down")
-                        .novaFont(15, weight: .medium)
+                        .novaFont(14, weight: .medium)
                         .foregroundColor(Theme.textSecondary)
                         .frame(width: 38, height: 38)
-                        .background(Theme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 2))
+                        .overlay(Circle().stroke(Theme.textSecondary.opacity(0.4), lineWidth: 1))
                 }
                 .accessibilityLabel("Hide keyboard")
                 .transition(.opacity)
@@ -179,12 +188,17 @@ struct ChatView: View {
             Button {
                 Task { await speech.toggleRecording() }
             } label: {
+                // A ring that lights blue while recording: recording is listening
                 Image(systemName: speech.isRecording ? "mic.fill" : "mic")
                     .novaFont(15, weight: .medium)
-                    .foregroundColor(speech.isRecording ? Theme.accent : Theme.textSecondary)
+                    .foregroundColor(speech.isRecording ? Theme.listening : Theme.textSecondary)
                     .frame(width: 38, height: 38)
-                    .background(Theme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                    .overlay(
+                        Circle().stroke(
+                            speech.isRecording ? Theme.listening : Theme.textSecondary.opacity(0.4),
+                            lineWidth: speech.isRecording ? 1.5 : 1
+                        )
+                    )
                     .shadow(color: speech.isRecording ? Theme.accentGlow : .clear, radius: 10)
                     .animation(.easeInOut(duration: 0.25), value: speech.isRecording)
             }
@@ -195,13 +209,15 @@ struct ChatView: View {
                 .novaFont(15)
                 .foregroundColor(Theme.textPrimary)
                 .tint(Theme.accent)
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(Theme.surface)
+                // Half the one line height, so it is a pill on one line and rounds off when it grows
+                .clipShape(RoundedRectangle(cornerRadius: 19))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 2)
+                    RoundedRectangle(cornerRadius: 19)
                         .stroke(
-                            speech.isRecording ? Theme.accent.opacity(0.6) : Theme.accent.opacity(0.3),
+                            speech.isRecording ? Theme.listening.opacity(0.6) : Theme.textSecondary.opacity(0.25),
                             lineWidth: 1
                         )
                 )
@@ -222,8 +238,10 @@ struct ChatView: View {
                     .foregroundColor(Theme.background)
                     .frame(width: 38, height: 38)
                     .background(Theme.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 2))
-                    .shadow(color: Theme.accentGlow, radius: 6)
+                    .clipShape(Circle())
+                    .shadow(color: canSend ? Theme.accentGlow : .clear, radius: 6)
+                    // Dim when there is nothing to send, so the button says whether it will work
+                    .opacity(canSend ? 1 : 0.35)
             }
             .disabled(!canSend)
         }
