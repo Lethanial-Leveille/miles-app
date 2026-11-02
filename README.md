@@ -172,7 +172,7 @@ Nova.entitlements              # Capabilities the app is signed with (push)
 │   └── RemindersView.swift    # Reminders and live timers
 │
 ├── Components/
-│   ├── MessageBubble.swift    # YOU and NOVA bubbles
+│   ├── ThreadMessage.swift    # One message on the conversation thread
 │   ├── MarkdownText.swift     # Renders parsed markdown blocks
 │   ├── NovaTypingIndicator.swift
 │   ├── TalkWaveform.swift     # The six bars, driven by audio level

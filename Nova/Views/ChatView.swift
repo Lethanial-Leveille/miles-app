@@ -24,7 +24,7 @@ struct ChatView: View {
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(service.messages) { message in
-                                MessageBubble(message: message)
+                                ThreadMessage(message: message)
                                     .id(message.id)
                             }
 
