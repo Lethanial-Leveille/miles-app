@@ -86,6 +86,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        // A geofence crossing can be what launched the app, and is only delivered once the
+        // monitor exists again
+        Task { await LocationService.resume() }
         return true
     }
 

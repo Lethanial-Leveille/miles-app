@@ -71,6 +71,8 @@ final class AuthManager: ObservableObject {
         AuthService.logout()
         // Logging out on purpose should mean Face ID cannot walk straight back in
         KeychainHelper.delete(forKey: Constants.Keychain.password)
+        // And that the phone stops reporting where it is
+        DeviceToken.forget()
         isAuthenticated = false
     }
 

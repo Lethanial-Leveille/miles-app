@@ -27,7 +27,11 @@ struct NovaApp: App {
             // Runs at launch and again at each login, so a push token is always registered
             // for whoever is signed in
             .task(id: authManager.isAuthenticated) {
-                if authManager.isAuthenticated { await PushService.enable() }
+                if authManager.isAuthenticated {
+                    // First, so background writes have their token before anything needs one
+                    await DeviceToken.ensure()
+                    await PushService.enable()
+                }
             }
         }
     }
