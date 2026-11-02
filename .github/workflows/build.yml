@@ -1,0 +1,46 @@
+# Builds the app on one of GitHub's Macs after every push, so a compile error
+# shows up here instead of the next time someone opens Xcode. Most of this app
+# has been written from cloud sessions that cannot run Xcode, and this is their
+# compiler. Free while the repository is public.
+#
+# Signing is switched off: it needs Apple credentials and proves nothing about
+# whether the Swift compiles. A simulator build needs no device either.
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # The project uses Xcode 26 settings (default MainActor isolation), so take
+      # the newest Xcode installed and say which one it was
+      - name: Pick the newest Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          newest=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$newest"
+          xcodebuild -version
+
+      # The full log is thousands of lines. Only errors, warnings and the verdict
+      # are printed; the whole log is kept as an artifact for anything deeper
+      - name: Build for the iPhone simulator
+        run: |
+          status=0
+          xcodebuild -project Nova.xcodeproj -target Nova -sdk iphonesimulator \
+            -configuration Debug CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || status=$?
+          grep -E "(error|warning): |\*\* BUILD" build.log | sort -u || true
+          exit $status
+
+      - name: Keep the full log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
