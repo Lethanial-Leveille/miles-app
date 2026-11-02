@@ -133,15 +133,21 @@ Nova talks to the Pi at `https://miles.lethanial.com` over HTTPS through a Cloud
 
 Nova uses a strict palette enforced via `Theme.swift`:
 
-- **Background**: `#0A0B10` (near black)
-- **Surface**: slightly lifted dark for cards
-- **Accent**: `#00E5FF` (electric cyan blue, the only chromatic color)
-- **Text Primary**: off white
-- **Text Secondary**: muted gray
+- **Background**: pure black, so on the OLED screen everything lit floats on switched off pixels
+- **Text**: off white, with a muted blue grey for secondary text
+- **Colour means state, never decoration.** Each of Nova's states owns one colour, and a colour only appears when its state is true:
 
-There is no red anywhere, not even for delete actions, and state is shown by shape rather than color: a service that is down is a hollow dot and the word DOWN. Dark mode is forced via `.preferredColorScheme(.dark)`, intentionally. Every font goes through a `novaFont` modifier that scales with Dynamic Type.
+| State | Colour |
+|-------|--------|
+| Listening, and the app at rest | Blue `#3D9BFF` |
+| Thinking, a tool is running | Purple `#A066FF` |
+| Speaking | Orange `#FF8A2A` |
+| Alert: a reminder, or a problem | Red `#FF3B4E` |
+| Done: something was saved or set | Green `#33E08A` |
 
-The app icon is a custom voice waveform mark (six electric blue bars on pure black), and the same six bars animate on the login screen and in Talk Mode.
+Shapes come from circles: rings around Nova in Talk Mode, and a conversation that hangs off one thin thread with a glowing ring wherever she speaks. Dark mode is forced via `.preferredColorScheme(.dark)`, intentionally. Every font goes through a `novaFont` modifier that scales with Dynamic Type.
+
+The app icon is a custom voice waveform mark (six bars on pure black), and the same six bars animate on the login screen and in Talk Mode.
 
 ---
 
