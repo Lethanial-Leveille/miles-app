@@ -29,7 +29,7 @@ struct HistoryView: View {
 
                 Rectangle()
                     .frame(height: 1)
-                    .foregroundColor(Theme.accent.opacity(0.15))
+                    .foregroundColor(Theme.textSecondary.opacity(0.18))
 
                 if let refreshError {
                     Text(refreshError)
@@ -107,6 +107,8 @@ struct HistoryView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(Theme.surface)
+            // A pill, like the message box in chat
+            .clipShape(Capsule())
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
         }
@@ -124,8 +126,9 @@ struct HistoryView: View {
                             .onTapGesture { toggle(message) }
                             .accessibilityAddTraits(.isButton)
                             .accessibilityHint(expanded.contains(message.id) ? "Collapses the message" : "Shows the full message")
-                            .listRowBackground(Theme.surface)
-                            .listRowSeparatorTint(Theme.accent.opacity(0.1))
+                            // Straight on black, told apart by hairlines, like every list now
+                            .listRowBackground(Theme.background)
+                            .listRowSeparatorTint(Theme.textSecondary.opacity(0.14))
                             .onAppear {
                                 // Trigger next page when near the bottom
                                 if message.id == displayed.suffix(5).first?.id {
@@ -302,7 +305,8 @@ private struct HistoryRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(message.isUser ? "YOU" : "NOVA")
                     .novaFont(9, weight: .bold, design: .monospaced)
-                    .foregroundColor(message.isUser ? Theme.accent : Theme.accent.opacity(0.55))
+                    // Her colour at rest for her, grey for you: the same as her ring and your dot in chat
+                    .foregroundColor(message.isUser ? Theme.textSecondary : Theme.listening)
                     .tracking(2)
 
                 if let date = message.date {

@@ -115,8 +115,29 @@ struct SettingsView: View {
         .overlay(alignment: .bottom) {
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Theme.accent.opacity(0.15))
+                .foregroundColor(Theme.textSecondary.opacity(0.18))
         }
+    }
+
+    // MARK: Row pieces
+
+    // Every row's icon sits in a thin ring, the shape the whole app is drawn in. Blue marks
+    // something you can use; grey is information only
+    private func ringIcon(_ systemName: String, color: Color) -> some View {
+        Image(systemName: systemName)
+            .novaFont(13)
+            .foregroundColor(color)
+            .frame(width: 32, height: 32)
+            .overlay(Circle().stroke(color.opacity(0.45), lineWidth: 1))
+    }
+
+    // Rows sit straight on black and are told apart by a hairline, not by boxes. It starts under
+    // the text, past the icon, the way the system's own lists do
+    private var rowDivider: some View {
+        Rectangle()
+            .frame(height: 1)
+            .foregroundColor(Theme.textSecondary.opacity(0.14))
+            .padding(.leading, 66)
     }
 
     // MARK: Section label
@@ -138,10 +159,7 @@ struct SettingsView: View {
 
     private var systemStatusRow: some View {
         HStack(spacing: 14) {
-            Image(systemName: "antenna.radiowaves.left.and.right")
-                .novaFont(16)
-                .foregroundColor(Theme.accent)
-                .frame(width: 24)
+            ringIcon("antenna.radiowaves.left.and.right", color: Theme.accent)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("SYSTEM STATUS")
@@ -156,7 +174,7 @@ struct SettingsView: View {
                 } else if let err = statusError {
                     Text(err)
                         .novaFont(10, design: .monospaced)
-                        .foregroundColor(Theme.textPrimary)
+                        .foregroundColor(Theme.alert)
                         .lineLimit(1)
                 } else if let s = systemStatus {
                     HStack(spacing: 6) {
@@ -183,22 +201,14 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Theme.surface)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Theme.accent.opacity(0.08))
-        }
+        .overlay(alignment: .bottom) { rowDivider }
     }
 
     // MARK: Nav row (chevron)
 
     private func navRow(icon: String, label: String, detail: String) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: icon)
-                .novaFont(16)
-                .foregroundColor(Theme.accent)
-                .frame(width: 24)
+            ringIcon(icon, color: Theme.accent)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(label)
@@ -218,22 +228,14 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Theme.surface)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Theme.accent.opacity(0.08))
-        }
+        .overlay(alignment: .bottom) { rowDivider }
     }
 
     // MARK: Info row (no chevron, non-interactive)
 
     private func infoRow(icon: String, label: String, detail: String) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: icon)
-                .novaFont(16)
-                .foregroundColor(Theme.textSecondary)
-                .frame(width: 24)
+            ringIcon(icon, color: Theme.textSecondary)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(label)
@@ -249,22 +251,14 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Theme.surface)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Theme.accent.opacity(0.08))
-        }
+        .overlay(alignment: .bottom) { rowDivider }
     }
 
     // MARK: Auto-send toggle
 
     private var autoSendRow: some View {
         HStack(spacing: 14) {
-            Image(systemName: "mic.fill")
-                .novaFont(16)
-                .foregroundColor(Theme.accent)
-                .frame(width: 24)
+            ringIcon("mic.fill", color: Theme.accent)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("AUTO-SEND ON STOP")
@@ -284,12 +278,7 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Theme.surface)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Theme.accent.opacity(0.08))
-        }
+        .overlay(alignment: .bottom) { rowDivider }
     }
 
     // MARK: Test notification
@@ -299,10 +288,7 @@ struct SettingsView: View {
             Task { await sendTestPush() }
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "bell.badge")
-                    .novaFont(16)
-                    .foregroundColor(Theme.accent)
-                    .frame(width: 24)
+                ringIcon("bell.badge", color: Theme.accent)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("SEND TEST NOTIFICATION")
@@ -319,12 +305,7 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Theme.surface)
-            .overlay(alignment: .bottom) {
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Theme.accent.opacity(0.08))
-            }
+            .overlay(alignment: .bottom) { rowDivider }
         }
         .disabled(testPushIsSending)
     }
@@ -336,10 +317,7 @@ struct SettingsView: View {
             Task { await syncHealth() }
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "heart.text.square")
-                    .novaFont(16)
-                    .foregroundColor(Theme.accent)
-                    .frame(width: 24)
+                ringIcon("heart.text.square", color: Theme.accent)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("APPLE HEALTH")
@@ -356,12 +334,7 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Theme.surface)
-            .overlay(alignment: .bottom) {
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Theme.accent.opacity(0.08))
-            }
+            .overlay(alignment: .bottom) { rowDivider }
         }
         .disabled(healthIsSyncing || !HealthService.isAvailable)
     }
@@ -377,21 +350,17 @@ struct SettingsView: View {
             }
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
-                    .novaFont(16)
-                    .foregroundColor(Theme.accent)
-                    .frame(width: 24)
+                ringIcon("rectangle.portrait.and.arrow.right", color: Theme.textSecondary)
 
                 Text("LOG OUT")
                     .novaFont(12, weight: .bold, design: .monospaced)
-                    .foregroundColor(Theme.accent)
+                    .foregroundColor(Theme.textPrimary)
                     .tracking(2)
 
                 Spacer()
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Theme.surface)
         }
     }
 
