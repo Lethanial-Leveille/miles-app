@@ -33,6 +33,8 @@ struct NovaApp: App {
             // for whoever is signed in
             .task(id: authManager.isAuthenticated) {
                 if authManager.isAuthenticated {
+                    // First, so background writes have their token before anything needs one
+                    await DeviceToken.ensure()
                     await PushService.enable()
                     await HealthService.syncIfDue()
                 }

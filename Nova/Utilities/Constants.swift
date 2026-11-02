@@ -9,5 +9,7 @@ enum Constants {
         static let accessToken = "com.lethanial.nova.accessToken"
         // Stored behind Face ID only, see KeychainHelper.saveBiometricProtected
         static let password = "com.lethanial.nova.password"
+        // Long lived and narrow, for background writes; see DeviceToken
+        static let deviceToken = "com.lethanial.nova.deviceToken"
     }
 }

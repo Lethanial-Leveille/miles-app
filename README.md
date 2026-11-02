@@ -26,6 +26,7 @@ Watch the full demo on LinkedIn: [linkedin.com/in/lethanial-lee-leveille](https:
 - **Your week**: seven days of Google Calendar, with events on Nova's own calendar editable in place.
 - **Reminders and timers** with live countdowns and swipe to cancel.
 - **Apple Health sync**: when the app opens it reads the last two weeks of steps, active calories, body weight and workouts from Health and sends a copy to the Pi, so I can ask Nova in my room how far I ran or what I weigh. Read only; the app never writes to Health.
+- **Home or away**: a geofence around home (Core Location's CLMonitor) tells the Pi when I leave and come back, so Nova can tell an empty apartment from a quiet one. Only "home" or "away" leaves the phone, never coordinates. It runs on a long lived device token that can only report this and Health data, since a login lasts an hour and the phone is in my pocket when it matters.
 - **Push notifications**: a reminder or timer that comes due reaches the phone through Apple's push service, not only the speaker in my room. Settings has a button that sends a test, so the whole chain can be checked in seconds.
 - **Diagnostics** for the Pi: uptime, core temperature, response latency, and whether each backend service is running.
 - **Conversation history** grouped by day, with search and pull to refresh.
@@ -100,6 +101,7 @@ NovaApp
                         ├─ RemindersView
                         ├─ Notifications (send a test push)
                         ├─ Apple Health (connect and sync)
+                        ├─ Home (set where home is, see home or away)
                         ├─ Voice settings (auto send toggle)
                         ├─ About
                         └─ Logout
@@ -123,6 +125,8 @@ Nova talks to the Pi at `https://miles.lethanial.com` over HTTPS through a Cloud
 | `/memories/merge/draft`, `/memories/merge` | POST | Draft a combined wording, and merge two into one |
 | `/calendar/events`, `/calendar/events/{id}` | GET, PATCH, DELETE | The week, and edits to Nova's events |
 | `/reminders`, `/reminders/{id}` | GET, DELETE | Open reminders and timers |
+| `/auth/device` | POST | A long lived token that can only make the phone's background writes |
+| `/presence/phone` | POST | Home or away, when the geofence is crossed |
 | `/health/sync` | POST | The last two weeks of Health data, replacing the Pi's copy of each day |
 | `/push/register`, `/push/unregister`, `/push/test` | POST | Tell the Pi this phone's push token, forget it at logout, and send a test |
 | `/status`, `/status/details` | GET | Connection check and diagnostics |
@@ -185,6 +189,8 @@ Nova.entitlements              # Capabilities the app is signed with (push)
 │   ├── AuthService.swift      # Login, renewal, Face ID
 │   ├── ChatService.swift      # A chat turn, streamed or blocking
 │   ├── HealthService.swift    # Reads HealthKit and sends a copy to the Pi
+│   ├── LocationService.swift  # The geofence around home, reported as home or away
+│   ├── DeviceToken.swift      # The narrow long lived token for background writes
 │   ├── PushService.swift      # Push permission and token, and the app delegate APNs needs
 │   ├── SpeechService.swift    # SFSpeechRecognizer, on device only
 │   ├── TalkSession.swift      # The Talk Mode loop

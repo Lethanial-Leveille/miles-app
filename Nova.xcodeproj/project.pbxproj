@@ -255,6 +255,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Nova uses Face ID to protect your session";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Nova reads your steps, weight and workouts from Apple Health so she can answer questions about them";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Nova notices when you leave and come home, so she knows whether you are around. Only home or away is sent to your Pi, never where you are";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Nova uses your location once, to remember where home is";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Nova uses the microphone to hear your voice messages";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Nova uses speech recognition to transcribe your voice messages";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -304,6 +306,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Nova uses Face ID to protect your session";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Nova reads your steps, weight and workouts from Apple Health so she can answer questions about them";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Nova notices when you leave and come home, so she knows whether you are around. Only home or away is sent to your Pi, never where you are";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Nova uses your location once, to remember where home is";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Nova uses the microphone to hear your voice messages";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Nova uses speech recognition to transcribe your voice messages";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

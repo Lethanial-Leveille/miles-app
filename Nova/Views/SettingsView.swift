@@ -12,6 +12,8 @@ struct SettingsView: View {
     @State private var testPushIsSending = false
     @State private var healthDetail = HealthService.statusLine()
     @State private var healthIsSyncing = false
+    @State private var homeDetail = LocationService.statusLine()
+    @State private var homeIsSetting = false
 
     // Read from the bundle so the About row cannot drift from MARKETING_VERSION again
     private var appVersion: String {
@@ -78,6 +80,9 @@ struct SettingsView: View {
                         sectionLabel("HEALTH")
                         healthRow
 
+                        sectionLabel("PRESENCE")
+                        homeRow
+
                         sectionLabel("VOICE")
                         autoSendRow
 
@@ -92,6 +97,8 @@ struct SettingsView: View {
                     .onAppear {
                         Task { await loadPendingMemoryCount() }
                         Task { await loadReminderCount() }
+                        // The last crossing may have changed while another screen was up
+                        if !homeIsSetting { homeDetail = LocationService.statusLine() }
                     }
                 }
             }
@@ -339,6 +346,35 @@ struct SettingsView: View {
         .disabled(healthIsSyncing || !HealthService.isAvailable)
     }
 
+    // MARK: Home location
+
+    private var homeRow: some View {
+        Button {
+            Task { await setHome() }
+        } label: {
+            HStack(spacing: 14) {
+                ringIcon("house", color: Theme.accent)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("HOME")
+                        .novaFont(12, weight: .medium, design: .monospaced)
+                        .foregroundColor(Theme.textPrimary)
+                        .tracking(1)
+                    Text(homeDetail)
+                        .novaFont(10, design: .monospaced)
+                        .foregroundColor(Theme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .overlay(alignment: .bottom) { rowDivider }
+        }
+        .disabled(homeIsSetting)
+    }
+
     // MARK: Logout
 
     private var logoutRow: some View {
@@ -375,6 +411,18 @@ struct SettingsView: View {
             statusError = error.localizedDescription
         }
         statusIsLoading = false
+    }
+
+    private func setHome() async {
+        homeIsSetting = true
+        homeDetail = "LOCATING..."
+        defer { homeIsSetting = false }
+        do {
+            try await LocationService.setHomeHere()
+            homeDetail = LocationService.statusLine()
+        } catch {
+            homeDetail = error.localizedDescription
+        }
     }
 
     private func syncHealth() async {
