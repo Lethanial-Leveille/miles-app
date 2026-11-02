@@ -3,43 +3,21 @@ import SwiftUI
 // One message on the conversation thread. A thin line runs down the left of the chat, with a
 // glowing ring wherever Nova speaks and a small grey dot wherever you do. Replaced the bubbles
 // in the November 2026 redesign.
-//
-// Each message draws only its own piece of the line, in its background. A background is sized to
-// exactly the view it is attached to, padding included, and ChatView stacks messages with no gap,
-// so the pieces meet as one unbroken line.
 struct ThreadMessage: View {
     let message: ChatMessage
 
     private var isUser: Bool { message.role == .user }
 
-    // The strip the line runs down. Text starts just past it, so a long reply gives up very
-    // little width to the thread
-    private static let gutter: CGFloat = 14
-
     var body: some View {
-        row
-            .padding(.leading, Self.gutter + 10)
-            .padding(.trailing, 16)
-            .padding(.vertical, 9)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(alignment: .topLeading) { thread }
-            .padding(.leading, 16)
-    }
-
-    // MARK: The thread
-
-    private var thread: some View {
-        ZStack(alignment: .top) {
-            Rectangle()
-                .fill(Theme.accent.opacity(0.3))
-                .frame(width: 1)
-
+        // Level with the first line of text: Nova's label, or your message itself
+        ThreadRow(nodeTop: isUser ? 16 : 8) {
             node
-                // Level with the first line of text: Nova's label, or your message itself
-                .padding(.top, isUser ? 16 : 8)
+        } content: {
+            row
         }
-        .frame(width: Self.gutter)
     }
+
+    // MARK: The node
 
     @ViewBuilder
     private var node: some View {
@@ -136,6 +114,47 @@ struct ThreadMessage: View {
     private var formattedTime: String {
         let formatter = Calendar.current.isDateInToday(message.timestamp) ? Self.timeFormatter : Self.dayAndTimeFormatter
         return formatter.string(from: message.timestamp)
+    }
+}
+
+// The strip the line runs down. Text starts just past it, so a long reply gives up very little
+// width to the thread. A file constant because a generic type cannot hold a static one.
+private let threadGutter: CGFloat = 14
+
+// The thread's layout, shared by everything that hangs off it: messages, and the ring that
+// shows Nova thinking. Each row draws only its own piece of the line, in its background. A
+// background is sized to exactly the view it is attached to, padding included, and ChatView
+// stacks rows with no gap, so the pieces meet as one unbroken line.
+struct ThreadRow<Node: View, Content: View>: View {
+    // How far down the row its node sits, to line up with the first line of text
+    let nodeTop: CGFloat
+    let node: Node
+    let content: Content
+
+    init(nodeTop: CGFloat, @ViewBuilder node: () -> Node, @ViewBuilder content: () -> Content) {
+        self.nodeTop = nodeTop
+        self.node = node()
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(.leading, threadGutter + 10)
+            .padding(.trailing, 16)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(alignment: .topLeading) {
+                ZStack(alignment: .top) {
+                    Rectangle()
+                        .fill(Theme.accent.opacity(0.3))
+                        .frame(width: 1)
+
+                    node
+                        .padding(.top, nodeTop)
+                }
+                .frame(width: threadGutter)
+            }
+            .padding(.leading, 16)
     }
 }
 

@@ -1,6 +1,9 @@
 import SwiftUI
 
-// TimelineView drives both the dots and the clock, so there is no Timer to clean up.
+// Nova working on a reply: a purple ring on the thread, breathing, with what she is doing beside
+// it. Sits on the same line as the messages (ThreadRow), so the answer arrives where the ring was.
+//
+// TimelineView drives both the breathing and the clock, so there is no Timer to clean up.
 // The previous Timer was never invalidated and kept firing after the indicator disappeared.
 struct NovaTypingIndicator: View {
     let startedAt: Date
@@ -11,46 +14,27 @@ struct NovaTypingIndicator: View {
     private let clockDelay: TimeInterval = 3
 
     var body: some View {
-        TimelineView(.periodic(from: startedAt, by: 0.4)) { context in
+        TimelineView(.periodic(from: startedAt, by: 0.6)) { context in
             let elapsed = max(0, context.date.timeIntervalSince(startedAt))
-            let phase = Int(elapsed / 0.4) % 3
+            let bright = Int(elapsed / 0.6) % 2 == 0
 
-            HStack(alignment: .bottom, spacing: 0) {
-                HStack(spacing: 10) {
-                    HStack(spacing: 5) {
-                        ForEach(0..<3, id: \.self) { index in
-                            Circle()
-                                .frame(width: 7, height: 7)
-                                .foregroundColor(Theme.accent)
-                                .opacity(phase == index ? 1.0 : 0.3)
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.3), value: phase)
-
-                    // A stage is news worth showing at once; plain thinking waits for the delay
-                    if let stage {
-                        Text(elapsed >= clockDelay ? "\(stage.uppercased()) \(Int(elapsed))s" : stage.uppercased())
-                            .novaFont(10, design: .monospaced)
-                            .monospacedDigit()
-                            .foregroundColor(Theme.accent)
-                            .tracking(1)
-                    } else if elapsed >= clockDelay {
-                        Text("THINKING \(Int(elapsed))s")
-                            .novaFont(10, design: .monospaced)
-                            .monospacedDigit()
-                            .foregroundColor(Theme.textSecondary)
-                            .tracking(1)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-
-                Spacer(minLength: 48)
+            ThreadRow(nodeTop: 8) {
+                RingNode(color: Theme.thinking)
+                    .opacity(bright ? 1 : 0.45)
+                    .animation(.easeInOut(duration: 0.6), value: bright)
+            } content: {
+                Text(label(elapsed: elapsed))
+                    .novaFont(10, weight: .medium, design: .monospaced)
+                    .monospacedDigit()
+                    .foregroundColor(Theme.thinking)
+                    .tracking(2)
+                    .padding(.top, 1)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 2)
         }
+    }
+
+    private func label(elapsed: TimeInterval) -> String {
+        let doing = stage?.uppercased() ?? "THINKING"
+        return elapsed >= clockDelay ? "\(doing)  \(Int(elapsed))s" : doing
     }
 }

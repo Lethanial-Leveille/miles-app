@@ -174,7 +174,7 @@ Nova.entitlements              # Capabilities the app is signed with (push)
 ├── Components/
 │   ├── ThreadMessage.swift    # One message on the conversation thread
 │   ├── MarkdownText.swift     # Renders parsed markdown blocks
-│   ├── NovaTypingIndicator.swift
+│   ├── NovaTypingIndicator.swift # Nova thinking: a purple ring on the thread
 │   ├── TalkWaveform.swift     # The six bars, driven by audio level
 │   ├── MemoryEditor.swift
 │   └── ScreenHeader.swift
