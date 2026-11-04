@@ -139,7 +139,7 @@ Nova uses a strict palette enforced via `Theme.swift`:
 | Alert: a reminder, or a problem | Red `#FF3B4E` |
 | Done: something was saved or set | Green `#33E08A` |
 
-Shapes come from circles: rings around Nova in Talk Mode, and a conversation that hangs off one thin thread with a glowing ring wherever she speaks. Dark mode is forced via `.preferredColorScheme(.dark)`, intentionally. Every font goes through a `novaFont` modifier that scales with Dynamic Type.
+A service that is down is still shown by shape rather than colour: a hollow dot and the word DOWN. Dark mode is forced via `.preferredColorScheme(.dark)`, intentionally. Every font goes through a `novaFont` modifier that scales with Dynamic Type.
 
 The app icon is a custom voice waveform mark (six bars on pure black), and the same six bars animate on the login screen and in Talk Mode.
 
