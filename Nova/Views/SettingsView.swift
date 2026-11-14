@@ -14,6 +14,8 @@ struct SettingsView: View {
     @State private var testPushIsSending = false
     @State private var homeDetail = LocationService.statusLine()
     @State private var homeIsSetting = false
+    @State private var healthDetail = HealthService.statusLine()
+    @State private var healthIsSyncing = false
 
     // Read from the bundle so the About row cannot drift from MARKETING_VERSION again
     private var appVersion: String {
@@ -108,6 +110,9 @@ struct SettingsView: View {
 
                         sectionLabel("PRESENCE")
                         homeRow
+
+                        sectionLabel("HEALTH")
+                        healthRow
 
                         sectionLabel("VOICE")
                         autoSendRow
@@ -373,6 +378,35 @@ struct SettingsView: View {
         .disabled(homeIsSetting)
     }
 
+    // MARK: Apple Health
+
+    private var healthRow: some View {
+        Button {
+            Task { await syncHealth() }
+        } label: {
+            HStack(spacing: 14) {
+                ringIcon("heart.text.square", color: Theme.accent)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("APPLE HEALTH")
+                        .novaFont(12, weight: .medium, design: .monospaced)
+                        .foregroundColor(Theme.textPrimary)
+                        .tracking(1)
+                    Text(healthDetail)
+                        .novaFont(10, design: .monospaced)
+                        .foregroundColor(Theme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .overlay(alignment: .bottom) { rowDivider }
+        }
+        .disabled(healthIsSyncing || !HealthService.isAvailable)
+    }
+
     // MARK: Logout
 
     private var logoutRow: some View {
@@ -437,6 +471,23 @@ struct SettingsView: View {
             testPushDetail = "Sent to \(sent) \(sent == 1 ? "phone" : "phones"). It should arrive in a few seconds."
         } catch {
             testPushDetail = error.localizedDescription
+        }
+    }
+
+    private func syncHealth() async {
+        healthIsSyncing = true
+        healthDetail = "SYNCING..."
+        defer { healthIsSyncing = false }
+        do {
+            // The first tap asks for access; later taps just sync
+            if HealthService.isEnabled {
+                try await HealthService.sync()
+            } else {
+                try await HealthService.connect()
+            }
+            healthDetail = HealthService.statusLine()
+        } catch {
+            healthDetail = error.localizedDescription
         }
     }
 

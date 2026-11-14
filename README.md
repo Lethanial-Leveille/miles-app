@@ -29,6 +29,7 @@ Watch the full demo on LinkedIn: [linkedin.com/in/lethanial-lee-leveille](https:
 - **Today**: the tasks left for the day, daily ones marked. Two taps finish one, because finishing has no undo. The day starts at 4am, and just after midnight the screen says it is still yesterday.
 - **Home or away**: a geofence around home (Core Location's CLMonitor) tells the Pi when I leave and come back, so Nova can tell an empty apartment from a quiet one. Only "home" or "away" leaves the phone, never coordinates. It runs on a long lived device token that can only report this and Health data, since a login lasts an hour and the phone is in my pocket when it matters.
 - **Push notifications**: a reminder or timer that comes due reaches the phone through Apple's push service, not only the speaker in my room. Settings has a button that sends a test, so the whole chain can be checked in seconds.
+- **Apple Health sync**: when the app opens it reads the last two weeks of steps, active calories, body weight and workouts from Health and sends a copy to the Pi, so I can ask Nova in my room how far I ran or what I weigh. Read only; the app never writes to Health.
 - **Diagnostics** for the Pi: uptime, core temperature, response latency, and whether each backend service is running.
 - **Conversation history** grouped by day, with search and pull to refresh.
 - **Dynamic Type** throughout, and a custom design system in electric blue, off white, and black.
@@ -104,6 +105,7 @@ NovaApp
                         ├─ ListsView → ListDetailView
                         ├─ Notifications (send a test push)
                         ├─ Home (set where home is, see home or away)
+                        ├─ Apple Health (connect and sync)
                         ├─ Voice settings (auto send toggle)
                         ├─ About
                         └─ Logout
@@ -133,6 +135,7 @@ Nova talks to the Pi at `https://miles.lethanial.com` over HTTPS through a Cloud
 | `/auth/device` | POST | A long lived token that can only make the phone's background writes |
 | `/presence/phone` | POST | Home or away, when the geofence is crossed |
 | `/push/register`, `/push/unregister`, `/push/test` | POST | Tell the Pi this phone's push token, forget it at logout, and send a test |
+| `/health/sync` | POST | The last two weeks of Health data, replacing the Pi's copy of each day |
 | `/status`, `/status/details` | GET | Connection check and diagnostics |
 
 ---
@@ -197,6 +200,7 @@ Nova.entitlements              # Capabilities the app is signed with (push)
 │   ├── LocationService.swift  # The geofence around home, reported as home or away
 │   ├── DeviceToken.swift      # The narrow long lived token for background writes
 │   ├── PushService.swift      # Push permission and token, and the app delegate APNs needs
+│   ├── HealthService.swift    # Reads HealthKit and sends a copy to the Pi
 │   ├── SpeechService.swift    # SFSpeechRecognizer, on device only
 │   ├── TalkSession.swift      # The Talk Mode loop
 │   ├── TalkTiming.swift       # Per turn latency line for the console
