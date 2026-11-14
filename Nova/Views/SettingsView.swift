@@ -8,6 +8,8 @@ struct SettingsView: View {
     @State private var statusError: String?
     @State private var pendingMemoryCount = 0
     @State private var reminderCount: Int?
+    @State private var taskCount: Int?
+    @State private var listSummary: (lists: Int, left: Int)?
 
     // Read from the bundle so the About row cannot drift from MARKETING_VERSION again
     private var appVersion: String {
@@ -28,6 +30,25 @@ struct SettingsView: View {
         case 0:   return "Nothing pending"
         case 1:   return "1 pending"
         case let count?: return "\(count) pending"
+        }
+    }
+
+    private var tasksDetail: String {
+        switch taskCount {
+        case nil: return "Tasks left for today"
+        case 0:   return "All done for today"
+        case 1:   return "1 task left"
+        case let count?: return "\(count) tasks left"
+        }
+    }
+
+    private var listsDetail: String {
+        switch listSummary {
+        case nil: return "Grocery and every other list"
+        case let (lists, left)?:
+            let listWord = lists == 1 ? "list" : "lists"
+            let itemWord = left == 1 ? "item" : "items"
+            return "\(lists) \(listWord), \(left) \(itemWord) to get"
         }
     }
 
@@ -67,6 +88,16 @@ struct SettingsView: View {
                         } label: {
                             navRow(icon: "timer", label: "REMINDERS AND TIMERS", detail: remindersDetail)
                         }
+                        NavigationLink {
+                            TasksView()
+                        } label: {
+                            navRow(icon: "checkmark.circle", label: "TODAY", detail: tasksDetail)
+                        }
+                        NavigationLink {
+                            ListsView()
+                        } label: {
+                            navRow(icon: "checklist", label: "LISTS", detail: listsDetail)
+                        }
 
                         sectionLabel("VOICE")
                         autoSendRow
@@ -82,6 +113,7 @@ struct SettingsView: View {
                     .onAppear {
                         Task { await loadPendingMemoryCount() }
                         Task { await loadReminderCount() }
+                        Task { await loadPlanningCounts() }
                     }
                 }
             }
@@ -309,6 +341,16 @@ struct SettingsView: View {
         // Same as the memory count: a hint, silent if it fails
         if let reminders = try? await APIService.fetchReminders() {
             reminderCount = reminders.count
+        }
+    }
+
+    private func loadPlanningCounts() async {
+        // Hints on rows like the others, silent if they fail
+        if let today = try? await APIService.fetchTasksToday() {
+            taskCount = today.tasks.count
+        }
+        if let lists = try? await APIService.fetchLists() {
+            listSummary = (lists.count, lists.reduce(0) { $0 + $1.unchecked })
         }
     }
 

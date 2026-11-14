@@ -129,6 +129,46 @@ enum APIService {
         try await performNoContent(request)
     }
 
+    // Every list by name, with how many items are still unchecked
+    static func fetchLists() async throws -> [ShoppingList] {
+        let request = try await authenticatedRequest(path: "/lists")
+        return try await perform(request)
+    }
+
+    // Unchecked items in the order added. With includeChecked, the purchase history follows,
+    // most recently checked first.
+    static func fetchListItems(listID: Int, includeChecked: Bool = false) async throws -> [ListItem] {
+        let request = try await authenticatedRequest(path: "/lists/\(listID)/items?include_checked=\(includeChecked)")
+        return try await perform(request)
+    }
+
+    // Both are safe to repeat: checking a checked item is still 200 and keeps its first
+    // checked_at. Only an item that no longer exists is a 404.
+    static func checkListItem(id: Int) async throws {
+        var request = try await authenticatedRequest(path: "/lists/items/\(id)/check")
+        request.httpMethod = "POST"
+        try await performNoContent(request)
+    }
+
+    static func uncheckListItem(id: Int) async throws {
+        var request = try await authenticatedRequest(path: "/lists/items/\(id)/uncheck")
+        request.httpMethod = "POST"
+        try await performNoContent(request)
+    }
+
+    // What is left to do on the Pi's current day, which starts at 4am
+    static func fetchTasksToday() async throws -> TaskDay {
+        let request = try await authenticatedRequest(path: "/tasks/today")
+        return try await perform(request)
+    }
+
+    // There is no route to undo this, so the screen asks for it deliberately
+    static func completeTask(id: Int) async throws {
+        var request = try await authenticatedRequest(path: "/tasks/\(id)/complete")
+        request.httpMethod = "POST"
+        try await performNoContent(request)
+    }
+
     // From the start of today, so this morning's events still show
     static func fetchCalendar(days: Int = 7) async throws -> CalendarWeek {
         let request = try await authenticatedRequest(path: "/calendar/events?days=\(days)")

@@ -25,6 +25,8 @@ Watch the full demo on LinkedIn: [linkedin.com/in/lethanial-lee-leveille](https:
 - **Memory Bank**: review memories Nova inferred on her own (approve or reject), add new ones, and edit them with the full wording history kept. Memories that read alike are offered as possible duplicates to merge, keep both, or keep one, and a pending memory close to a stored one shows it alongside.
 - **Your week**: seven days of Google Calendar, with events on Nova's own calendar editable in place.
 - **Reminders and timers** with live countdowns and swipe to cancel.
+- **Lists**: every list Nova keeps from "add eggs to my grocery list". Tap an item to check it off and tap it again under BOUGHT to put it back. Adding stays voice only.
+- **Today**: the tasks left for the day, daily ones marked. Two taps finish one, because finishing has no undo. The day starts at 4am, and just after midnight the screen says it is still yesterday.
 - **Diagnostics** for the Pi: uptime, core temperature, response latency, and whether each backend service is running.
 - **Conversation history** grouped by day, with search and pull to refresh.
 - **Dynamic Type** throughout, and a custom design system in electric blue, off white, and black.
@@ -96,6 +98,8 @@ NovaApp
                         ├─ MemoriesView → MemoryDetailView
                         ├─ CalendarView (your week)
                         ├─ RemindersView
+                        ├─ TasksView (today)
+                        ├─ ListsView → ListDetailView
                         ├─ Voice settings (auto send toggle)
                         ├─ About
                         └─ Logout
@@ -119,6 +123,9 @@ Nova talks to the Pi at `https://miles.lethanial.com` over HTTPS through a Cloud
 | `/memories/merge/draft`, `/memories/merge` | POST | Draft a combined wording, and merge two into one |
 | `/calendar/events`, `/calendar/events/{id}` | GET, PATCH, DELETE | The week, and edits to Nova's events |
 | `/reminders`, `/reminders/{id}` | GET, DELETE | Open reminders and timers |
+| `/lists`, `/lists/{id}/items` | GET | Lists, and one list's items with its purchase history |
+| `/lists/items/{id}/check`, `/lists/items/{id}/uncheck` | POST | Check an item off or put it back, both safe to repeat |
+| `/tasks/today`, `/tasks/{id}/complete` | GET, POST | Today's tasks, and finishing one |
 | `/status`, `/status/details` | GET | Connection check and diagnostics |
 
 ---
@@ -162,7 +169,9 @@ Nova/
 │   ├── MemoriesView.swift     # Memory Bank, approval queue, possible duplicates
 │   ├── MemoryDetailView.swift # One memory and its wording history
 │   ├── CalendarView.swift     # Your week, event editor
-│   └── RemindersView.swift    # Reminders and live timers
+│   ├── RemindersView.swift    # Reminders and live timers
+│   ├── TasksView.swift        # Today's tasks, two taps to finish
+│   └── ListsView.swift        # Every list, and one list to check off
 │
 ├── Components/
 │   ├── ThreadMessage.swift    # One message on the conversation thread
