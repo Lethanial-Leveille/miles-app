@@ -169,6 +169,61 @@ enum APIService {
         try await performNoContent(request)
     }
 
+    // The Pi sends this phone its reminder and timer pushes once it knows the token
+    static func registerPushDevice(token: String, environment: String, deviceName: String) async throws {
+        let request = try await jsonRequest(
+            path: "/push/register", method: "POST",
+            body: ["token": token, "environment": environment, "device_name": deviceName])
+        try await performNoContent(request)
+    }
+
+    static func unregisterPushDevice(token: String) async throws {
+        var request = try await jsonRequest(path: "/push/unregister", method: "POST", body: ["token": token])
+        // Logging out waits on this, and an offline phone should not wait a minute to sign out
+        request.timeoutInterval = 5
+        try await performNoContent(request)
+    }
+
+    // The Pi answers 503 with what it is missing, or 502 when Apple refuses, and either sentence
+    // is what the caller shows
+    static func sendTestPush() async throws -> Int {
+        let request = try await jsonRequest(path: "/push/test", method: "POST", body: [:])
+        let result: PushTestResult = try await perform(request)
+        return result.sent
+    }
+
+    // The long lived token for background writes. Asked for with a full login.
+    static func fetchDeviceToken() async throws -> String {
+        var request = try await authenticatedRequest(path: "/auth/device")
+        request.httpMethod = "POST"
+        let result: DeviceTokenResponse = try await perform(request)
+        return result.accessToken
+    }
+
+    // A geofence crossing, sent with the device token because it usually runs with the phone in a
+    // pocket and no live login. It skips checkStatus on purpose: a refusal here is about the device
+    // token, and must not log him out of the app the way a refused login does.
+    static func reportPresence(state: String, at date: Date) async throws {
+        guard let token = DeviceToken.current else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(Constants.API.baseURL)/presence/phone") else { throw APIError.invalidURL }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(
+            withJSONObject: ["state": state, "at": ISO8601DateFormatter().string(from: date)])
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if code == 401 {
+            // Expired or revoked: drop it, and the next login fetches a new one
+            DeviceToken.forget()
+            throw APIError.unauthorized
+        }
+        guard (200...299).contains(code) else { throw APIError.serverError(code) }
+    }
+
     // From the start of today, so this morning's events still show
     static func fetchCalendar(days: Int = 7) async throws -> CalendarWeek {
         let request = try await authenticatedRequest(path: "/calendar/events?days=\(days)")
