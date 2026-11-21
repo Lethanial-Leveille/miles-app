@@ -20,6 +20,8 @@ enum HealthService {
     // Long enough to cover a missed week and show a weight trend, short enough that one query
     // per type stays quick
     private static let lookbackDays = 14
+    // Two days of hours: enough to reach back to a wake time the morning before
+    private static let hourlyLookback = 48
 
     // Opening the app twice in a minute should not read and upload twice
     private static let minimumGap: TimeInterval = 5 * 60
@@ -114,8 +116,9 @@ enum HealthService {
         }
 
         let workouts = try await recentWorkouts(from: start)
+        let hours = try await hourlySteps(to: now)
 
-        try await APIService.syncHealth(HealthSyncPayload(days: days, workouts: workouts))
+        try await APIService.syncHealth(HealthSyncPayload(days: days, workouts: workouts, hours: hours))
         UserDefaults.standard.set(Date(), forKey: lastSyncKey)
     }
 
@@ -145,6 +148,27 @@ enum HealthService {
             }
         }
         return values
+    }
+
+    // The last two days hour by hour. His day starts when he wakes, which can be the morning
+    // before, so a day total cut at midnight cannot answer "how many steps today" at 1 AM.
+    private static func hourlySteps(to end: Date) async throws -> [HealthSyncPayload.Hour] {
+        let calendar = Calendar.current
+        guard let thisHour = calendar.dateInterval(of: .hour, for: end)?.start,
+              let start = calendar.date(byAdding: .hour, value: -(hourlyLookback - 1), to: thisHour)
+        else { return [] }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+        let descriptor = HKStatisticsCollectionQueryDescriptor(
+            predicate: HKSamplePredicate.quantitySample(type: HKQuantityType(.stepCount), predicate: predicate),
+            options: .cumulativeSum,
+            anchorDate: start,
+            intervalComponents: DateComponents(hour: 1))
+        let collection = try await descriptor.result(for: store)
+        return collection.statistics().compactMap { statistics in
+            guard let sum = statistics.sumQuantity() else { return nil }
+            return HealthSyncPayload.Hour(start: statistics.startDate,
+                                          steps: Int(sum.doubleValue(for: .count()).rounded()))
+        }
     }
 
     private static func recentWorkouts(from start: Date) async throws -> [HealthSyncPayload.Workout] {

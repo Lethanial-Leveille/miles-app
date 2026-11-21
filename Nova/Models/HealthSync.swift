@@ -19,6 +19,13 @@ struct HealthSyncPayload: Encodable {
         let kcal: Double?
     }
 
+    // Steps per hour, so the Pi can count from when he woke rather than from midnight
+    struct Hour: Encodable {
+        let start: Date
+        let steps: Int
+    }
+
     let days: [Day]
     let workouts: [Workout]
+    let hours: [Hour]
 }
