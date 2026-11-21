@@ -34,6 +34,7 @@ struct TalkView: View {
                     .animation(nil, value: statusLine)
 
                 transcript
+                    .padding(.bottom, session.notice == nil ? 24 : 0)
 
                 if let notice = session.notice {
                     Text(notice)
@@ -41,14 +42,8 @@ struct TalkView: View {
                         .foregroundColor(Theme.textPrimary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
-                        .padding(.bottom, 12)
+                        .padding(.bottom, 24)
                 }
-
-                Text(hint)
-                    .novaFont(10, design: .monospaced)
-                    .foregroundColor(Theme.textSecondary)
-                    .tracking(3)
-                    .padding(.bottom, 24)
             }
         }
         .contentShape(Rectangle())
@@ -144,15 +139,6 @@ struct TalkView: View {
         // Her last answer stays readable until he taps to talk again
         case .waiting:   return session.said
         default:         return ""
-        }
-    }
-
-    private var hint: String {
-        switch session.phase {
-        case .listening: return "TAP TO SEND"
-        case .speaking:  return "TAP TO CUT IN"
-        case .waiting:   return "TAP TO TALK"
-        default:         return " "
         }
     }
 }
