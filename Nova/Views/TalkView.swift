@@ -60,9 +60,9 @@ struct TalkView: View {
         }
     }
 
-    // Everything said, whole, however long. It scrolls rather than cutting anything off, and
-    // follows his words as they come in. Her reply arrives whole and starts at the top, where
-    // she starts speaking.
+    // His words, whole, however long. It scrolls rather than cutting anything off, and follows
+    // them as they come in. Her reply is heard, not read, so it is never captioned here; the
+    // full text is still in Chat.
     private var transcript: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -70,7 +70,7 @@ struct TalkView: View {
                     Color.clear.frame(height: 0).id(TranscriptEdge.top)
                     Text(caption)
                         .novaFont(17)
-                        .foregroundColor(session.phase == .speaking ? Theme.textPrimary : Theme.textSecondary)
+                        .foregroundColor(Theme.textSecondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity)
@@ -135,9 +135,6 @@ struct TalkView: View {
         switch session.phase {
         case .listening: return session.heard.isEmpty ? "Go ahead, Lethanial." : session.heard
         case .thinking:  return session.heard
-        case .speaking:  return session.said
-        // Her last answer stays readable until he taps to talk again
-        case .waiting:   return session.said
         default:         return ""
         }
     }
