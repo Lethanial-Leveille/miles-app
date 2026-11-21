@@ -12,7 +12,8 @@ import Foundation
 // the monitor is set up again at every launch: AppDelegate calls resume() for that.
 enum LocationService {
 
-    private static let monitorName = "nova-home"
+    // Letters and digits only: iOS kills the app at launch over any other character, even a hyphen
+    private static let monitorName = "NovaHome"
     private static let conditionID = "home"
 
     // Wide enough that GPS wobble indoors never reads as leaving; small enough that a walk to the
