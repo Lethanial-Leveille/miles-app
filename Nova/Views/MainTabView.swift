@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @ObservedObject private var router = ApprovalRouter.shared
+
     var body: some View {
         TabView {
             ChatView()
@@ -19,5 +21,9 @@ struct MainTabView: View {
                 }
         }
         .tint(Theme.accent)
+        // A tap on an approval push lands here
+        .sheet(isPresented: $router.isOpen) {
+            ApprovalsView()
+        }
     }
 }

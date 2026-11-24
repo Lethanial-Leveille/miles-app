@@ -34,7 +34,44 @@ enum PushService {
         let center = UNUserNotificationCenter.current()
         let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
         guard granted else { return }
+        registerCategories()
         UIApplication.shared.registerForRemoteNotifications()
+    }
+
+    // The Approve and Skip buttons on an approval push. Both need the phone unlocked, and both
+    // open the app, because the decision is sent with his full login, which may need Face ID.
+    nonisolated static let approvalCategory = "MILES_APPROVAL"
+    nonisolated static let approveAction = "APPROVE"
+    nonisolated static let skipAction = "SKIP"
+
+    static func registerCategories() {
+        let approve = UNNotificationAction(identifier: approveAction, title: "Approve",
+                                           options: [.authenticationRequired, .foreground])
+        let skip = UNNotificationAction(identifier: skipAction, title: "Skip",
+                                        options: [.authenticationRequired, .foreground, .destructive])
+        let category = UNNotificationCategory(identifier: approvalCategory, actions: [approve, skip],
+                                              intentIdentifiers: [], options: [])
+        UNUserNotificationCenter.current().setNotificationCategories([category])
+    }
+
+    // One tap on one request. The result is shown as a local notification, so he knows whether
+    // it went through without opening anything else.
+    static func decide(approvalID: Int, approve: Bool) async {
+        do {
+            try await APIService.decideApproval(id: approvalID, approve: approve)
+            await confirm(approve ? "Approved. The Mac will do it now." : "Skipped. Nothing will be done.")
+        } catch {
+            await confirm("Not recorded: \(error.localizedDescription)")
+        }
+        ApprovalRouter.shared.refresh()
+    }
+
+    private static func confirm(_ body: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "Nova"
+        content.body = body
+        try? await UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }
 
     // True when the user turned notifications off for Nova in iOS Settings, which nothing the
@@ -105,6 +142,26 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) {
         // Fails on a simulator without a signed-in Apple ID, and on a build with no push entitlement
         print("[Nova] Could not register for push: \(error.localizedDescription)")
+    }
+
+    // A tap on an approval push: Approve or Skip decide that one request; a plain tap opens the
+    // approvals screen on it.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let info = response.notification.request.content.userInfo
+        guard response.notification.request.content.categoryIdentifier == PushService.approvalCategory,
+              let id = (info["approval_id"] as? Int) ?? (info["approval_id"] as? NSNumber)?.intValue
+        else { return }
+        switch response.actionIdentifier {
+        case PushService.approveAction:
+            await PushService.decide(approvalID: id, approve: true)
+        case PushService.skipAction:
+            await PushService.decide(approvalID: id, approve: false)
+        default:
+            await MainActor.run { ApprovalRouter.shared.open() }
+        }
     }
 
     // iOS stays quiet about a notification that arrives while its app is open, unless told

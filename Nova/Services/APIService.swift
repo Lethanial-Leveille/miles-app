@@ -117,6 +117,20 @@ enum APIService {
         return try await perform(request)
     }
 
+    // Requests waiting on his tap: texts to students' chats and Evallo edits
+    static func fetchApprovals() async throws -> [Approval] {
+        let request = try await authenticatedRequest(path: "/approvals")
+        let list: ApprovalList = try await perform(request)
+        return list.approvals
+    }
+
+    // Approves or skips exactly one request. The Pi refuses an expired one (410).
+    static func decideApproval(id: Int, approve: Bool) async throws {
+        var request = try await authenticatedRequest(path: "/approvals/\(id)/\(approve ? "approve" : "skip")")
+        request.httpMethod = "POST"
+        try await performNoContent(request)
+    }
+
     // Timers and reminders together, soonest first, told apart by kind
     static func fetchReminders() async throws -> [Reminder] {
         let request = try await authenticatedRequest(path: "/reminders")

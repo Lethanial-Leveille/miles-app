@@ -83,6 +83,14 @@ struct SettingsView: View {
                             navRow(icon: "brain", label: "MEMORIES", detail: memoriesDetail)
                         }
 
+                        sectionLabel("APPROVALS")
+                        NavigationLink {
+                            ApprovalsView()
+                        } label: {
+                            navRow(icon: "checkmark.shield", label: "WAITING ON YOU",
+                                   detail: "Texts and Evallo edits the Mac will do only if you approve")
+                        }
+
                         sectionLabel("PLANNING")
                         NavigationLink {
                             CalendarView()
