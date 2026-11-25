@@ -9,6 +9,8 @@ enum APIError: LocalizedError {
     case streamEndedEarly
     // The server refused and said why, like "That memory is already stored"
     case rejected(String)
+    // A session route answered 409: the session is closed or missed, so it is read only now
+    case notOpen(String)
 
     var errorDescription: String? {
         switch self {
@@ -19,6 +21,7 @@ enum APIError: LocalizedError {
         case .decodingError(let msg):   return "Data error: \(msg)"
         case .streamEndedEarly:         return "The reply stopped partway through."
         case .rejected(let reason):     return reason
+        case .notOpen(let reason):      return reason
         }
     }
 }
@@ -334,6 +337,7 @@ enum APIService {
         case delta(String)    // reply text as Nova writes it
         case stage(String)    // what Nova is doing while a tool runs, "Checking your calendar"
         case reset            // drop everything streamed so far and start the reply over
+        case closed(String)   // a session closed during this turn, with its summary; before done
         case done(String)     // the whole reply, exactly as the Pi saved it to history
         case failure(String)  // the turn broke on the Pi. It is finished either way.
     }
@@ -342,22 +346,33 @@ enum APIService {
     // end whatever happens to this connection, so a dropped stream is a lost view of a turn
     // that still happened, never a turn that did not run.
     static func chatStream(text: String, channel: Channel = .text) -> AsyncThrowingStream<ChatEvent, Error> {
+        eventStream(path: "/chat/stream", body: ["message": text, "channel": channel.rawValue])
+    }
+
+    // Reads one streamed turn from any route that speaks the chat stream's events. rules is how
+    // a refusal before the stream starts becomes an error, so a route can give its own status
+    // codes their own meaning. Only a session turn sends closed; the main chat never does.
+    private static func eventStream(
+        path: String,
+        body: [String: Any],
+        rules: StatusRules = .standard
+    ) -> AsyncThrowingStream<ChatEvent, Error> {
         AsyncThrowingStream<ChatEvent, Error> { continuation in
             let work = Task {
                 do {
-                    var request = try await authenticatedRequest(path: "/chat/stream")
+                    var request = try await authenticatedRequest(path: path)
                     request.httpMethod = "POST"
                     request.timeoutInterval = chatTimeout
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                    request.httpBody = try JSONSerialization.data(withJSONObject: ["message": text, "channel": channel.rawValue])
+                    request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     // A refusal is a short JSON body, not a stream, so read it whole for its reason
                     if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                         var body = Data()
                         for try await byte in bytes { body.append(byte) }
-                        try checkStatus(response, data: body)
+                        try check(response, data: body, rules: rules)
                     }
 
                     // The kind named by the last "event:" line, which the next "data:" line belongs to
@@ -386,6 +401,8 @@ enum APIService {
                             continuation.yield(.stage(value))
                         case "reset":
                             continuation.yield(.reset)
+                        case "closed":
+                            continuation.yield(.closed(value))
                         case "done":
                             continuation.yield(.done(value))
                             continuation.finish()
@@ -409,6 +426,58 @@ enum APIService {
             // a reply into a stream nobody is consuming
             continuation.onTermination = { _ in work.cancel() }
         }
+    }
+
+    // MARK: Sessions
+
+    // status is "open", "closed", "missed" or "all". Newest activity first.
+    static func fetchSessions(status: String = "open") async throws -> [Session] {
+        let request = try await authenticatedRequest(path: "/sessions?status=\(status)")
+        let list: SessionList = try await perform(request)
+        return list.sessions
+    }
+
+    // The session and its messages. The first call marks it opened on the Pi.
+    static func fetchSession(id: Int) async throws -> SessionDetail {
+        let request = try await authenticatedRequest(path: "/sessions/\(id)")
+        return try await perform(request)
+    }
+
+    // Starts one by hand. For a once a day type that already has today's, the Pi answers 200
+    // with that one instead of a second, so this is safe to tap twice.
+    static func startSession(type: String) async throws -> SessionDetail {
+        let request = try await jsonRequest(path: "/sessions", method: "POST", body: ["type": type])
+        return try await perform(request, rules: .session)
+    }
+
+    // One turn, streamed with the chat's events plus closed. A session that is not open is a
+    // 409 before the stream starts, thrown as notOpen.
+    static func sessionTurn(id: Int, text: String) -> AsyncThrowingStream<ChatEvent, Error> {
+        eventStream(path: "/sessions/\(id)/turns", body: ["message": text], rules: .session)
+    }
+
+    // Closes it now; the session comes back closed with its summary written
+    static func closeSession(id: Int) async throws -> Session {
+        var request = try await authenticatedRequest(path: "/sessions/\(id)/close")
+        request.httpMethod = "POST"
+        let answer: SessionEnvelope = try await perform(request, rules: .session)
+        return answer.session
+    }
+
+    // How a status code reads. On the session routes a 409 means one thing, the session is not
+    // open, and the screen turns read only on it. Every other status means what it does
+    // everywhere else.
+    private enum StatusRules {
+        case standard, session
+    }
+
+    private static func check(_ response: URLResponse, data: Data, rules: StatusRules) throws {
+        if rules == .session, let http = response as? HTTPURLResponse, http.statusCode == 409 {
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let detail = (object?["detail"] as? String) ?? ""
+            throw APIError.notOpen(detail.isEmpty ? "This session is no longer open." : detail)
+        }
+        try checkStatus(response, data: data)
     }
 
     // A finished reply in Nova's own voice, as mp3. The Pi renders it with the same voice,
@@ -491,10 +560,10 @@ enum APIService {
     }
 
     // Sends a request and decodes the JSON response body into type T
-    private static func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+    private static func perform<T: Decodable>(_ request: URLRequest, rules: StatusRules = .standard) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        try checkStatus(response, data: data)
+        try check(response, data: data, rules: rules)
 
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase

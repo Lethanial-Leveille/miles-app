@@ -253,6 +253,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Nova uses Face ID to protect your session";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Nova notices when you leave and come home, so she knows whether you are around. Only home or away is sent to your Pi, never where you are";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Nova uses your location once, to remember where home is";
@@ -304,6 +305,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Nova uses Face ID to protect your session";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Nova notices when you leave and come home, so she knows whether you are around. Only home or away is sent to your Pi, never where you are";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Nova uses your location once, to remember where home is";

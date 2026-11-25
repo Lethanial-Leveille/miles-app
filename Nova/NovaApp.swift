@@ -18,6 +18,11 @@ struct NovaApp: App {
                 }
             }
             .environmentObject(authManager)
+            // nova://session/<id> and nova://sessions, from a link or a Shortcut. Held by the
+            // router until the tab view is up, so a link opened while logged out still lands.
+            .onOpenURL { url in
+                SessionRouter.shared.handle(url: url)
+            }
             .preferredColorScheme(.dark)
             // Icon buttons have fixed frames; past this size their symbols would spill out
             .dynamicTypeSize(...DynamicTypeSize.accessibility3)

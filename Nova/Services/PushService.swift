@@ -207,6 +207,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // A plain tap on a MILES push (not a timer or reminder): a problem opens in full; anything
         // else opens Approvals on the request it was about.
         let kind = (info["kind"] as? String) ?? content.threadIdentifier
+        // A session push (the nightly review and its reminder) opens that session. It has no
+        // category, so a plain tap is the only way here.
+        if kind == "session" {
+            let sessionID = (info["session_id"] as? Int) ?? (info["session_id"] as? NSNumber)?.intValue
+            await MainActor.run {
+                if let sessionID {
+                    SessionRouter.shared.open(sessionID: sessionID)
+                } else {
+                    SessionRouter.shared.openList()
+                }
+            }
+            return
+        }
         guard ["approval", "agent", "watchdog", "login"].contains(kind)
                 || content.categoryIdentifier == PushService.watchdogCategoryID else { return }
         let isError = (info["level"] as? String) == "error"

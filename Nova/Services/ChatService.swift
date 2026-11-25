@@ -116,6 +116,10 @@ final class ChatService: ObservableObject {
 
                 case .failure(let reason):
                     errorMessage = reason.isEmpty ? "The turn failed on the Pi." : reason
+
+                case .closed:
+                    // Only a session turn sends this; the main chat has nothing to close
+                    break
                 }
             }
         } catch {
