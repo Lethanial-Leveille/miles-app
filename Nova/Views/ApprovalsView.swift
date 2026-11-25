@@ -1,15 +1,29 @@
 import Combine
 import SwiftUI
 
-// Opens the approvals screen when an approval push is tapped, and tells an open screen to reload
-// after a decision made from the lock screen.
+// Where a tapped MILES push lands: the approvals sheet on that request, or the error screen. Also
+// tells an open screen to reload after a decision made from the lock screen.
 @MainActor
 final class ApprovalRouter: ObservableObject {
     static let shared = ApprovalRouter()
     @Published var isOpen = false
     @Published var revision = 0
+    // The request the push was about; the sheet scrolls to it and marks it.
+    @Published var selectedID: Int?
+    @Published var errorNote: PushNote?
 
-    func open() { isOpen = true }
+    func open(approvalID: Int? = nil) {
+        errorNote = nil
+        selectedID = approvalID
+        revision += 1
+        isOpen = true
+    }
+
+    func showError(_ note: PushNote) {
+        isOpen = false
+        errorNote = note
+    }
+
     nonisolated func refresh() { Task { @MainActor in self.revision += 1 } }
 }
 
@@ -21,6 +35,8 @@ struct ApprovalsView: View {
     @State private var isLoading = true
     @State private var message: String?
     @State private var busy: Set<Int> = []
+    // The tapped request when it is no longer waiting (done, failed, skipped, expired).
+    @State private var settled: Approval?
 
     var body: some View {
         ZStack {
@@ -39,7 +55,7 @@ struct ApprovalsView: View {
                     Spacer()
                     ProgressView().tint(Theme.accent)
                     Spacer()
-                } else if approvals.isEmpty {
+                } else if approvals.isEmpty && settled == nil {
                     Spacer()
                     Text("NOTHING WAITING")
                         .novaFont(12, design: .monospaced)
@@ -47,18 +63,80 @@ struct ApprovalsView: View {
                         .tracking(3)
                     Spacer()
                 } else {
-                    ScrollView {
-                        VStack(spacing: 14) {
-                            ForEach(approvals) { card($0) }
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(spacing: 14) {
+                                if let settled { settledCard(settled) }
+                                ForEach(approvals) { card($0).id($0.id) }
+                            }
+                            .padding(16)
                         }
-                        .padding(16)
+                        .refreshable { await load() }
+                        .onAppear { scrollToSelected(proxy) }
+                        .onChange(of: approvals.map(\.id)) { _, _ in scrollToSelected(proxy) }
                     }
-                    .refreshable { await load() }
                 }
             }
         }
         .toolbar(.hidden, for: .navigationBar)
         .task(id: router.revision) { await load() }
+    }
+
+    private func scrollToSelected(_ proxy: ScrollViewProxy) {
+        guard let id = router.selectedID, approvals.contains(where: { $0.id == id }) else { return }
+        withAnimation { proxy.scrollTo(id, anchor: .top) }
+    }
+
+    // Each message as it will arrive, in order: the words, then the Zoom link on its own.
+    private func messages(_ a: Approval) -> some View {
+        let parts = a.messages
+        return VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(parts.enumerated()), id: \.offset) { i, part in
+                if parts.count > 1 {
+                    Text("MESSAGE \(i + 1) OF \(parts.count)")
+                        .novaFont(9, design: .monospaced)
+                        .foregroundColor(Theme.textSecondary)
+                }
+                Text(part)
+                    .novaFont(14)
+                    .foregroundColor(Theme.textPrimary)
+                    .textSelection(.enabled)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.accent.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    private func settledCard(_ a: Approval) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("REQUEST #\(a.id) · \(a.status.uppercased())")
+                .novaFont(10, weight: .medium, design: .monospaced)
+                .foregroundColor(a.status == "failed" ? Theme.alert : Theme.textSecondary)
+            if a.isText, let chat = a.chatName {
+                Text("TEXT TO \(chat.uppercased())")
+                    .novaFont(10, design: .monospaced)
+                    .foregroundColor(Theme.textSecondary)
+                messages(a)
+            } else {
+                Text(a.summary).novaFont(14).foregroundColor(Theme.textPrimary)
+            }
+            if let result = a.result {
+                Text(result)
+                    .novaFont(12, design: .monospaced)
+                    .foregroundColor(Theme.textPrimary)
+                    .textSelection(.enabled)
+            }
+            Text("Nothing to decide: this request is \(a.status).")
+                .novaFont(10, design: .monospaced)
+                .foregroundColor(Theme.textSecondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.surface.opacity(0.6))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.accent, lineWidth: 1.5))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     private func card(_ a: Approval) -> some View {
@@ -67,10 +145,7 @@ struct ApprovalsView: View {
                 Text("TEXT TO \(chat.uppercased())")
                     .novaFont(10, weight: .medium, design: .monospaced)
                     .foregroundColor(Theme.textSecondary)
-                Text(a.text ?? "")
-                    .novaFont(14)
-                    .foregroundColor(Theme.textPrimary)
-                    .textSelection(.enabled)
+                messages(a)
             } else {
                 Text("EVALLO")
                     .novaFont(10, weight: .medium, design: .monospaced)
@@ -103,12 +178,19 @@ struct ApprovalsView: View {
         }
         .padding(14)
         .background(Theme.surface.opacity(0.6))
+        .overlay(RoundedRectangle(cornerRadius: 14)
+            .stroke(Theme.accent, lineWidth: router.selectedID == a.id ? 1.5 : 0))
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     private func load() async {
         do {
             approvals = try await APIService.fetchApprovals()
+            if let id = router.selectedID, !approvals.contains(where: { $0.id == id }) {
+                settled = try? await APIService.fetchApproval(id: id)
+            } else {
+                settled = nil
+            }
         } catch {
             message = error.localizedDescription
         }

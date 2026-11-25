@@ -125,10 +125,24 @@ enum APIService {
     }
 
     // Approves or skips exactly one request. The Pi refuses an expired one (410).
+    // One request whatever its status, for a push about a request already decided or done.
+    static func fetchApproval(id: Int) async throws -> Approval {
+        let request = try await authenticatedRequest(path: "/approvals/\(id)")
+        return try await perform(request)
+    }
+
     static func decideApproval(id: Int, approve: Bool) async throws {
         var request = try await authenticatedRequest(path: "/approvals/\(id)/\(approve ? "approve" : "skip")")
         request.httpMethod = "POST"
         try await performNoContent(request)
+    }
+
+    // The Mac missed a job: "retry", "remind" (7 AM) or "skip". Returns the Pi's one-line answer.
+    static func decideWatchdog(id: Int, decision: String) async throws -> String {
+        var request = try await authenticatedRequest(path: "/watchdog/\(id)/\(decision)")
+        request.httpMethod = "POST"
+        let answer: WatchdogAnswer = try await perform(request)
+        return answer.message
     }
 
     // Timers and reminders together, soonest first, told apart by kind

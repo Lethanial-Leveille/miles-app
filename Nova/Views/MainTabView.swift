@@ -21,9 +21,12 @@ struct MainTabView: View {
                 }
         }
         .tint(Theme.accent)
-        // A tap on an approval push lands here
+        // A tap on a MILES push lands here: the request it was about, or the problem in full
         .sheet(isPresented: $router.isOpen) {
             ApprovalsView()
+        }
+        .sheet(item: $router.errorNote) { note in
+            ErrorDetailView(note: note)
         }
     }
 }

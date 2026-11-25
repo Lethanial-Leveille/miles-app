@@ -51,7 +51,35 @@ enum PushService {
                                         options: [.authenticationRequired, .foreground, .destructive])
         let category = UNNotificationCategory(identifier: approvalCategory, actions: [approve, skip],
                                               intentIdentifiers: [], options: [])
-        UNUserNotificationCenter.current().setNotificationCategories([category])
+        // iOS replaces the whole set on every call, so both categories go in together.
+        UNUserNotificationCenter.current().setNotificationCategories([category, watchdogCategory()])
+    }
+
+    // The Mac missed a scheduled job (the 7 PM drafts, the 9 PM summaries). Three answers, each
+    // sent with his full login: run it when the Mac next checks in, ask again at 7 AM, or drop it.
+    nonisolated static let watchdogCategoryID = "MILES_WATCHDOG"
+    nonisolated static let retryAction = "WATCHDOG_RETRY"
+    nonisolated static let remindAction = "WATCHDOG_REMIND"
+    nonisolated static let skipTonightAction = "WATCHDOG_SKIP"
+
+    private static func watchdogCategory() -> UNNotificationCategory {
+        let retry = UNNotificationAction(identifier: retryAction, title: "Retry when awake",
+                                         options: [.authenticationRequired, .foreground])
+        let remind = UNNotificationAction(identifier: remindAction, title: "Remind me at 7 AM",
+                                          options: [.authenticationRequired, .foreground])
+        let skip = UNNotificationAction(identifier: skipTonightAction, title: "Skip tonight",
+                                        options: [.authenticationRequired, .foreground, .destructive])
+        return UNNotificationCategory(identifier: watchdogCategoryID, actions: [retry, remind, skip],
+                                      intentIdentifiers: [], options: [])
+    }
+
+    static func decideWatchdog(alertID: Int, decision: String) async {
+        do {
+            let message = try await APIService.decideWatchdog(id: alertID, decision: decision)
+            await confirm(message)
+        } catch {
+            await confirm("Not recorded: \(error.localizedDescription)")
+        }
     }
 
     // One tap on one request. The result is shown as a local notification, so he knows whether
@@ -150,17 +178,48 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        let info = response.notification.request.content.userInfo
-        guard response.notification.request.content.categoryIdentifier == PushService.approvalCategory,
-              let id = (info["approval_id"] as? Int) ?? (info["approval_id"] as? NSNumber)?.intValue
-        else { return }
-        switch response.actionIdentifier {
-        case PushService.approveAction:
-            await PushService.decide(approvalID: id, approve: true)
-        case PushService.skipAction:
-            await PushService.decide(approvalID: id, approve: false)
-        default:
-            await MainActor.run { ApprovalRouter.shared.open() }
+        let content = response.notification.request.content
+        let info = content.userInfo
+        let approvalID = (info["approval_id"] as? Int) ?? (info["approval_id"] as? NSNumber)?.intValue
+        if content.categoryIdentifier == PushService.watchdogCategoryID,
+           let id = (info["watchdog_id"] as? Int) ?? (info["watchdog_id"] as? NSNumber)?.intValue {
+            let decision: String? = [PushService.retryAction: "retry",
+                                     PushService.remindAction: "remind",
+                                     PushService.skipTonightAction: "skip"][response.actionIdentifier]
+            if let decision {
+                await PushService.decideWatchdog(alertID: id, decision: decision)
+                return
+            }
+        }
+        if content.categoryIdentifier == PushService.approvalCategory, let id = approvalID {
+            switch response.actionIdentifier {
+            case PushService.approveAction:
+                await PushService.decide(approvalID: id, approve: true)
+                return
+            case PushService.skipAction:
+                await PushService.decide(approvalID: id, approve: false)
+                return
+            default:
+                break
+            }
+        }
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
+        // A plain tap on a MILES push (not a timer or reminder): a problem opens in full; anything
+        // else opens Approvals on the request it was about.
+        let kind = (info["kind"] as? String) ?? content.threadIdentifier
+        guard ["approval", "agent", "watchdog", "login"].contains(kind)
+                || content.categoryIdentifier == PushService.watchdogCategoryID else { return }
+        let isError = (info["level"] as? String) == "error"
+            || content.categoryIdentifier == PushService.watchdogCategoryID
+        let note = PushNote(title: content.title,
+                            detail: (info["detail"] as? String) ?? content.body,
+                            approvalID: approvalID)
+        await MainActor.run {
+            if isError {
+                ApprovalRouter.shared.showError(note)
+            } else {
+                ApprovalRouter.shared.open(approvalID: approvalID)
+            }
         }
     }
 
