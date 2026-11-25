@@ -187,17 +187,42 @@ enum APIService {
         try await performNoContent(request)
     }
 
-    // What is left to do on the Pi's current day, which starts at 4am
-    static func fetchTasksToday() async throws -> TaskDay {
-        let request = try await authenticatedRequest(path: "/tasks/today")
+    // Today, the next days and the backlog in one answer. The Pi's day starts at 4am.
+    static func fetchTasksOverview(days: Int = 3) async throws -> TasksOverview {
+        let request = try await authenticatedRequest(path: "/tasks/overview?days=\(days)")
         return try await perform(request)
     }
 
-    // There is no route to undo this, so the screen asks for it deliberately
-    static func completeTask(id: Int) async throws {
-        var request = try await authenticatedRequest(path: "/tasks/\(id)/complete")
+    // where is "today" or "backlog"; dueDate is a plain yyyy-MM-dd string or nil
+    static func createTask(title: String, where place: String, dueDate: String?) async throws -> NovaTask {
+        let body: [String: Any] = [
+            "title": title,
+            "where": place,
+            "due_date": dueDate.map { $0 as Any } ?? NSNull(),
+        ]
+        let request = try await jsonRequest(path: "/tasks", method: "POST", body: body)
+        let response: TaskResponse = try await perform(request)
+        return response.task
+    }
+
+    static func completeTask(id: Int) async throws -> NovaTask {
+        try await taskAction(id: id, action: "complete")
+    }
+
+    static func reopenTask(id: Int) async throws -> NovaTask {
+        try await taskAction(id: id, action: "reopen")
+    }
+
+    // Clears the day and must do, and the Pi removes the task's MILES calendar block
+    static func backlogTask(id: Int) async throws -> NovaTask {
+        try await taskAction(id: id, action: "backlog")
+    }
+
+    private static func taskAction(id: Int, action: String) async throws -> NovaTask {
+        var request = try await authenticatedRequest(path: "/tasks/\(id)/\(action)")
         request.httpMethod = "POST"
-        try await performNoContent(request)
+        let response: TaskResponse = try await perform(request)
+        return response.task
     }
 
     // The Pi sends this phone its reminder and timer pushes once it knows the token

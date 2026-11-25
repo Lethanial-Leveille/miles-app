@@ -19,18 +19,3 @@ struct ListItem: Decodable, Identifiable {
 
     var checkedDate: Date? { ServerDate.parse(checkedAt) }
 }
-
-// GET /tasks/today. day is the Pi's 4am day as "yyyy-MM-dd": at 1am it is still yesterday.
-struct TaskDay: Decodable {
-    let day: String
-    let tasks: [TaskItem]
-}
-
-struct TaskItem: Decodable, Identifiable {
-    let id: Int
-    let text: String
-    // "daily" or null for a one time task. The database refuses anything else.
-    let recurrence: String?
-
-    var isDaily: Bool { recurrence == "daily" }
-}

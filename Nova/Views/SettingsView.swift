@@ -8,7 +8,6 @@ struct SettingsView: View {
     @State private var statusError: String?
     @State private var pendingMemoryCount = 0
     @State private var reminderCount: Int?
-    @State private var taskCount: Int?
     @State private var listSummary: (lists: Int, left: Int)?
     @State private var testPushDetail = "Check that the Pi can reach this phone"
     @State private var testPushIsSending = false
@@ -36,15 +35,6 @@ struct SettingsView: View {
         case 0:   return "Nothing pending"
         case 1:   return "1 pending"
         case let count?: return "\(count) pending"
-        }
-    }
-
-    private var tasksDetail: String {
-        switch taskCount {
-        case nil: return "Tasks left for today"
-        case 0:   return "All done for today"
-        case 1:   return "1 task left"
-        case let count?: return "\(count) tasks left"
         }
     }
 
@@ -101,11 +91,6 @@ struct SettingsView: View {
                             RemindersView()
                         } label: {
                             navRow(icon: "timer", label: "REMINDERS AND TIMERS", detail: remindersDetail)
-                        }
-                        NavigationLink {
-                            TasksView()
-                        } label: {
-                            navRow(icon: "checkmark.circle", label: "TODAY", detail: tasksDetail)
                         }
                         NavigationLink {
                             ListsView()
@@ -512,9 +497,6 @@ struct SettingsView: View {
 
     private func loadPlanningCounts() async {
         // Hints on rows like the others, silent if they fail
-        if let today = try? await APIService.fetchTasksToday() {
-            taskCount = today.tasks.count
-        }
         if let lists = try? await APIService.fetchLists() {
             listSummary = (lists.count, lists.reduce(0) { $0 + $1.unchecked })
         }

@@ -5,7 +5,7 @@ struct MainTabView: View {
     @ObservedObject private var sessions = SessionRouter.shared
 
     enum Tab: Hashable {
-        case chat, sessions, history, settings
+        case chat, sessions, tasks, history, settings
     }
 
     @State private var tab: Tab = .chat
@@ -23,6 +23,12 @@ struct MainTabView: View {
                     Label("Sessions", systemImage: "moon.stars.fill")
                 }
                 .tag(Tab.sessions)
+
+            TasksTabView()
+                .tabItem {
+                    Label("Tasks", systemImage: "checkmark.circle.fill")
+                }
+                .tag(Tab.tasks)
 
             HistoryView()
                 .tabItem {
