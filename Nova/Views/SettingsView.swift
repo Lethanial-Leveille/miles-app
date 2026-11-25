@@ -168,7 +168,7 @@ struct SettingsView: View {
 
     // MARK: Row pieces
 
-    // Every row's icon sits in a thin ring, the shape the whole app is drawn in. Blue marks
+    // Every row's icon sits in a thin ring, the shape the whole app is drawn in. Cyan marks
     // something you can use; grey is information only
     private func ringIcon(_ systemName: String, color: Color) -> some View {
         Image(systemName: systemName)
@@ -266,6 +266,8 @@ struct SettingsView: View {
                     .novaFont(10, design: .monospaced)
                     .foregroundColor(Theme.textSecondary)
             }
+            // A link's label centres wrapped lines by default; settings rows read from the leading edge
+            .multilineTextAlignment(.leading)
 
             Spacer()
 
@@ -293,6 +295,8 @@ struct SettingsView: View {
                     .novaFont(10, design: .monospaced)
                     .foregroundColor(Theme.textSecondary)
             }
+            // Same leading edge as the link rows above
+            .multilineTextAlignment(.leading)
 
             Spacer()
         }

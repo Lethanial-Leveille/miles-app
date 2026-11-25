@@ -170,7 +170,7 @@ struct ApprovalsView: View {
                 Button { decide(a, approve: true) } label: {
                     Text("Approve").frame(maxWidth: .infinity).padding(.vertical, 10)
                 }
-                .foregroundColor(.black)
+                .foregroundColor(Theme.onAccent)
                 .background(Theme.done)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }

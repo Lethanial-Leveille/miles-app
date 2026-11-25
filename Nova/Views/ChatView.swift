@@ -96,7 +96,7 @@ struct ChatView: View {
 
     // MARK: Header
 
-    // The connection is a state like any other, so it takes that state's colour: blue ready,
+    // The connection is a state like any other, so it takes that state's colour: cyan ready,
     // purple while checking, red when the Pi cannot be reached
     private var connectionColor: Color {
         switch service.connection {
@@ -188,7 +188,7 @@ struct ChatView: View {
             Button {
                 Task { await speech.toggleRecording() }
             } label: {
-                // A ring that lights blue while recording: recording is listening
+                // A ring that lights cyan while recording: recording is listening
                 Image(systemName: speech.isRecording ? "mic.fill" : "mic")
                     .novaFont(15, weight: .medium)
                     .foregroundColor(speech.isRecording ? Theme.listening : Theme.textSecondary)
@@ -235,7 +235,7 @@ struct ChatView: View {
             Button(action: sendMessage) {
                 Image(systemName: "arrow.up")
                     .novaFont(14, weight: .bold)
-                    .foregroundColor(Theme.background)
+                    .foregroundColor(Theme.onAccent)
                     .frame(width: 38, height: 38)
                     .background(Theme.accent)
                     .clipShape(Circle())

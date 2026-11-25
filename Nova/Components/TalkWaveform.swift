@@ -115,7 +115,7 @@ struct TalkWaveform: View {
 
 extension TalkSession.Phase {
     // The colour that means this state, here and anywhere else the app shows what Nova is doing.
-    // Waiting for his tap is blue, because she is ready to listen.
+    // Waiting for his tap is cyan, because she is ready to listen.
     var color: Color {
         switch self {
         case .listening, .waiting: return Theme.listening

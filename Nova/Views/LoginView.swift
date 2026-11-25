@@ -37,15 +37,15 @@ struct LoginView: View {
                 Button(action: attemptBiometric) {
                     HStack(spacing: 10) {
                         if isLoading && !showPassword {
-                            ProgressView().tint(Theme.background)
+                            ProgressView().tint(Theme.onAccent)
                         } else {
                             Image(systemName: "faceid")
                                 .novaFont(20, weight: .regular)
-                                .foregroundColor(Theme.background)
+                                .foregroundColor(Theme.onAccent)
                             Text("FACE ID")
                                 .novaFont(14, weight: .bold, design: .monospaced)
                                 .tracking(3)
-                                .foregroundColor(Theme.background)
+                                .foregroundColor(Theme.onAccent)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -97,12 +97,12 @@ struct LoginView: View {
                         Button(action: attemptPasswordLogin) {
                             ZStack {
                                 if isLoading {
-                                    ProgressView().tint(Theme.background)
+                                    ProgressView().tint(Theme.onAccent)
                                 } else {
                                     Text("AUTHENTICATE")
                                         .novaFont(13, weight: .bold, design: .monospaced)
                                         .tracking(3)
-                                        .foregroundColor(Theme.background)
+                                        .foregroundColor(Theme.onAccent)
                                 }
                             }
                             .frame(maxWidth: .infinity)

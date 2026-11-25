@@ -226,7 +226,7 @@ struct SessionView: View {
                 Button(action: sendMessage) {
                     Image(systemName: "arrow.up")
                         .novaFont(14, weight: .bold)
-                        .foregroundColor(Theme.background)
+                        .foregroundColor(Theme.onAccent)
                         .frame(width: 38, height: 38)
                         .background(Theme.accent)
                         .clipShape(Circle())

@@ -30,7 +30,7 @@ struct ThreadMessage: View {
         }
     }
 
-    // Blue for every reply for now. Green for "something was saved" needs the Pi to say when a
+    // Cyan for every reply for now. Green for "something was saved" needs the Pi to say when a
     // tool finished, which it does not yet
     private var nodeColor: Color {
         message.text.isEmpty ? Theme.textSecondary : Theme.listening

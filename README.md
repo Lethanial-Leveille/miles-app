@@ -32,7 +32,7 @@ Watch the full demo on LinkedIn: [linkedin.com/in/lethanial-lee-leveille](https:
 - **Apple Health sync**: when the app opens it reads the last two weeks of steps, active calories, body weight and workouts from Health and sends a copy to the Pi, so I can ask Nova in my room how far I ran or what I weigh. Read only; the app never writes to Health.
 - **Diagnostics** for the Pi: uptime, core temperature, response latency, and whether each backend service is running.
 - **Conversation history** grouped by day, with search and pull to refresh.
-- **Dynamic Type** throughout, and a custom design system in electric blue, off white, and black.
+- **Dynamic Type** throughout, and a custom design system in electric cyan, off white, and black.
 
 ---
 
@@ -145,16 +145,16 @@ Nova talks to the Pi at `https://miles.lethanial.com` over HTTPS through a Cloud
 Nova uses a strict palette enforced via `Theme.swift`:
 
 - **Background**: pure black, so on the OLED screen everything lit floats on switched off pixels
-- **Text**: off white, with a muted blue grey for secondary text
+- **Text**: off white, with a muted cyan grey for secondary text
 - **Colour means state, never decoration.** Each of Nova's states owns one colour, and a colour only appears when its state is true:
 
 | State | Colour |
 |-------|--------|
-| Listening, and the app at rest | Blue `#3D9BFF` |
+| Listening, and the app at rest | Cyan `#00E5FF` |
 | Thinking, a tool is running | Purple `#A066FF` |
 | Speaking | Orange `#FF8A2A` |
 | Alert: a reminder, or a problem | Red `#FF3B4E` |
-| Done: something was saved or set | Green `#33E08A` |
+| Done: something was saved or set | Green `#3CDD64` |
 
 A service that is down is still shown by shape rather than colour: a hollow dot and the word DOWN. Dark mode is forced via `.preferredColorScheme(.dark)`, intentionally. Every font goes through a `novaFont` modifier that scales with Dynamic Type.
 

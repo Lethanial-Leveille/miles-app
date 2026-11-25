@@ -434,7 +434,7 @@ private struct PendingRow: View {
             Button(action: onApprove) {
                 Image(systemName: "checkmark")
                     .novaFont(13, weight: .bold)
-                    .foregroundColor(Theme.background)
+                    .foregroundColor(Theme.onAccent)
                     .frame(width: 34, height: 34)
                     .background(Theme.accent)
                     .clipShape(Circle())
