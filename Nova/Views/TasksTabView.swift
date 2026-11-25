@@ -9,6 +9,7 @@ struct TasksTabView: View {
     @State private var message: String?
     @State private var busy: Set<Int> = []
     @State private var showingNew = false
+    @State private var loadSequence = 0
 
     var body: some View {
         NavigationStack {
@@ -74,7 +75,7 @@ struct TasksTabView: View {
                             emptyRow
                         }
                         ForEach(day.tasks) { task in
-                            row(task, swipeToBacklog: !task.daily)
+                            row(task, swipeToBacklog: !task.daily && !task.isDone)
                         }
                     } header: {
                         sectionHeader(day.label)
@@ -151,10 +152,16 @@ struct TasksTabView: View {
     // Reading again after every action, success or not, so the screen is the Pi's word
     // and never a guess
     private func load() async {
+        // Answers can arrive out of order; only the newest request may change the screen
+        loadSequence += 1
+        let mine = loadSequence
         do {
-            overview = try await APIService.fetchTasksOverview()
+            let fresh = try await APIService.fetchTasksOverview()
+            guard mine == loadSequence else { return }
+            overview = fresh
             loadError = nil
         } catch {
+            guard mine == loadSequence else { return }
             if overview == nil {
                 loadError = error.localizedDescription
             } else {
@@ -283,7 +290,7 @@ private struct NewTaskSheet: View {
     @State private var error: String?
 
     private var trimmed: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var canSubmit: Bool { !trimmed.isEmpty && trimmed.count <= 200 && !isSending }
+    private var canSubmit: Bool { !trimmed.isEmpty && trimmed.unicodeScalars.count <= 200 && !isSending }
 
     var body: some View {
         NavigationStack {
@@ -296,10 +303,12 @@ private struct NewTaskSheet: View {
                             .foregroundColor(Theme.textPrimary)
                             .lineLimit(1...4)
                             .onChange(of: title) {
-                                if title.count > 200 { title = String(title.prefix(200)) }
+                                if title.unicodeScalars.count > 200 {
+                                    title = String(String.UnicodeScalarView(title.unicodeScalars.prefix(200)))
+                                }
                             }
                     } footer: {
-                        Text("\(title.count) of 200")
+                        Text("\(title.unicodeScalars.count) of 200")
                             .novaFont(10, design: .monospaced)
                             .foregroundColor(Theme.textSecondary)
                     }

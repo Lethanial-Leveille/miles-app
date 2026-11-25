@@ -73,9 +73,12 @@ enum TaskDate {
     }
 
     // The yyyy-MM-dd for the calendar day a date picker shows. The picker works in the
-    // device's calendar, so the day is read in it, with no zone conversion afterwards.
-    static func string(fromPicker date: Date, calendar: Calendar = .current) -> String {
-        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+    // device's time zone, so the day is read in it, with no zone conversion afterwards.
+    static func string(fromPicker date: Date, calendar: Calendar? = nil) -> String {
+        // Always Gregorian: a Buddhist or Japanese device calendar would send year 2569 or 8
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = .current
+        let parts = (calendar ?? gregorian).dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 1970, parts.month ?? 1, parts.day ?? 1)
     }
 }
