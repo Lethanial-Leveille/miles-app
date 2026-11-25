@@ -191,13 +191,13 @@ struct SessionView: View {
 
     private var canSend: Bool {
         service.isOpen && !service.isResponding && !service.isClosing
-            && !trimmedInput.isEmpty && trimmedInput.count <= SessionService.maxLength
+            && !trimmedInput.isEmpty && trimmedInput.unicodeScalars.count <= SessionService.maxLength
     }
 
     private var inputBar: some View {
         VStack(spacing: 4) {
-            if trimmedInput.count > SessionService.maxLength {
-                Text("\(trimmedInput.count) OF \(SessionService.maxLength) CHARACTERS")
+            if trimmedInput.unicodeScalars.count > SessionService.maxLength {
+                Text("\(trimmedInput.unicodeScalars.count) OF \(SessionService.maxLength) CHARACTERS")
                     .novaFont(10, design: .monospaced)
                     .foregroundColor(Theme.alert)
             }
